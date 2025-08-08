@@ -1,0 +1,3 @@
+[submodule "lib/emLibC"]
+	path = lib/emLibC
+	url = https://github.com/tobbad/emLibC.git
