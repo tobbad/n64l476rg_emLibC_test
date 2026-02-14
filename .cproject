@@ -81,7 +81,7 @@
 					<sourceEntries>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Core"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Drivers"/>
-						<entry excluding="emLibC/wire/src/spi.c|emLibC/wire/src/i2c.c|emLibC/port/src/stm/stm32f4|emLibC/port/src/stm/stm32f3|emLibC/device|emLibC/test" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="lib"/>
+						<entry excluding="emLibC/common/test|emLibC/common/src/slip.c|emLibC/wire/src/spi.c|emLibC/wire/src/i2c.c|emLibC/port/src/stm/stm32f4|emLibC/port/src/stm/stm32f3|emLibC/device|emLibC/test" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="lib"/>
 					</sourceEntries>
 				</configuration>
 			</storageModule>
@@ -158,7 +158,7 @@
 					<sourceEntries>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Core"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Drivers"/>
-						<entry excluding="emLibC/wire/src/spi.c|emLibC/wire/src/i2c.c|emLibC/port/src/stm/stm32f4|emLibC/port/src/stm/stm32f3|emLibC/device|emLibC/test" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="lib"/>
+						<entry excluding="emLibC/common/test|emLibC/common/src/slip.c|emLibC/wire/src/spi.c|emLibC/wire/src/i2c.c|emLibC/port/src/stm/stm32f4|emLibC/port/src/stm/stm32f3|emLibC/device|emLibC/test" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="lib"/>
 					</sourceEntries>
 				</configuration>
 			</storageModule>
@@ -180,4 +180,5 @@
 			<autodiscovery enabled="false" problemReportingEnabled="true" selectedProfileId=""/>
 		</scannerConfigBuildInfo>
 	</storageModule>
+	<storageModule moduleId="refreshScope"/>
 </cproject>

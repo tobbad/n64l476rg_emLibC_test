@@ -1,0 +1,54 @@
+BasedOnStyle: LLVM
+
+# ==================================================
+# Indentation
+# ==================================================
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+
+# ==================================================
+# Line length
+# ==================================================
+ColumnLimit: 0
+
+# ==================================================
+# Braces / layout
+# ==================================================
+BreakBeforeBraces: Attach
+AllowShortFunctionsOnASingleLine: All
+AllowShortBlocksOnASingleLine: false
+AllowShortIfStatementsOnASingleLine: WithoutElse
+
+# ==================================================
+# Initializers (Structs, designated initializers)
+# ==================================================
+BinPackArguments: false
+BinPackParameters: false
+Cpp11BracedListStyle: false
+
+BraceWrapping:
+  AfterStruct: true
+  AfterFunction: false
+  AfterControlStatement: false
+  BeforeElse: false
+
+# ==================================================
+# Alignment (tabellarisch)
+# ==================================================
+AlignConsecutiveAssignments: true
+AlignConsecutiveDeclarations: true
+AlignOperands: true
+AlignTrailingComments: true
+
+# ==================================================
+# Whitespace
+# ==================================================
+SpaceBeforeParens: ControlStatements
+SpacesInParentheses: false
+SpaceBeforeAssignmentOperators: true
+
+# ==================================================
+# Switch / case
+# ==================================================
+IndentCaseLabels: true

@@ -21,12 +21,14 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "common.h"
+#include "serial.h"
+#include "gpio_port.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-
+extern dev_handle_t sDev;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -45,20 +47,26 @@ DMA_HandleTypeDef hdma_usart2_tx;
 DMA_HandleTypeDef hdma_usart2_rx;
 
 /* USER CODE BEGIN PV */
-uint8_t tx_buffer[LINE_LENGTH];
-uint8_t tx_buffers[LINE_LENGTH];
-uint8_t rx_buffers[LINE_LENGTH];
-static sio_t serial = {
-	.uart = &huart2,
-	.ready={true, true},
-	.buffer_size = {0, 0},
-	.bytes_in_buffer={0, 0},
-	.buffer = {0, 0},
-	.mode = TIMESTAMP|ONE_SHOT,
+
+dev_handle_t sDev;
+gpio_port_t user_pin={
+    .cnt=3,
+    .pin ={
+        { .port = GPIOA, .pin = GPIO_PIN_9,  .def= false, .inv=true, .conf = { .Mode = GPIO_MODE_OUTPUT_PP, .Speed=GPIO_SPEED_FREQ_LOW, .Pull = GPIO_NOPULL } },
+        { .port = GPIOC, .pin = GPIO_PIN_7,  .def= false, .inv=true,  .conf = { .Mode = GPIO_MODE_OUTPUT_PP, .Speed=GPIO_SPEED_FREQ_LOW, .Pull = GPIO_NOPULL } },
+        { .port = GPIOC, .pin = GPIO_PIN_5,  .def= false, .inv=false,  .conf = { .Mode = GPIO_MODE_OUTPUT_PP, .Speed=GPIO_SPEED_FREQ_LOW, .Pull = GPIO_NOPULL } },
+    }
 };
-static gpio_pin_t so_pin ={	.port=GPIOA, .pin=GPIO_PIN_5, .cState=0, .conf= {.Mode=GPIO_MODE_OUTPUT_PP, .Pull=GPIO_PULLUP}}; // so pin
-gpio_pin_t uart_toggle ={	.port=GPIOA, .pin=GPIO_PIN_6, .cState=1,  .conf= {.Mode=GPIO_MODE_OUTPUT_PP, .Pull=GPIO_PULLUP}}; // so pin
+typedef enum {
+  user_led,
+  radio_led,
+  time_pin,
+} led_e;
+
 bool doLoop=1;
+static buffer_t rxb = {.size = RX_BUFFER_SIZE};
+static buffer_t txb = {.size = TX_BUFFER_SIZE};
+sio_t serial = {.uart = &huart2, .buffer = {&rxb, &txb}, .mode = RAW | TIMESTAMP};
 
 /* USER CODE END PV */
 
@@ -80,8 +88,7 @@ static void MX_USART2_UART_Init(void);
   * @brief  The application entry point.
   * @retval int
   */
-int main(void)
-{
+int main(void){
 
   /* USER CODE BEGIN 1 */
 
@@ -108,16 +115,15 @@ int main(void)
   MX_DMA_Init();
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
-  GpioPinInit(&uart_toggle);
-  GpioPinInit(&so_pin);
-  GpioPinWrite(&so_pin, GPIO_PIN_RESET);
-  serial_init(&serial);
+  GpioPortInit(&user_pin);
+  sDev = keyboard_init(&serial_dev, &serial);
   printf(""NL);
   printf("*******"NL);
   //HAL_Delay(1);
   printf("Started"NL);
   //HAL_Delay(1);
   rbuf_init();
+  char tx_buffer[LINE_LENGTH];
   memset(tx_buffer, 0 , LINE_LENGTH);
   for (uint8_t i=0;i<LINE_LENGTH-2; i++){
 	  tx_buffer[i]='0'+(i%10);
@@ -125,7 +131,6 @@ int main(void)
 		  tx_buffer[i]='0'+(i/10);
 	  }
   }
-  serial_set_mode(RAW|ONE_SHOT, true);
   HAL_Delay(1);
 
 
@@ -136,20 +141,18 @@ int main(void)
   while (doLoop)
   {
 	  uint32_t time=HAL_GetTick();
-	  GpioPinWrite(&so_pin, GPIO_PIN_SET);
-	  int32_t len= printf("%s"NL, tx_buffer);
-	  GpioPinWrite(&so_pin, GPIO_PIN_RESET);
+	  GpioPinToggle(&user_pin.pin[user_led]);
+	  printf("%s"NL, tx_buffer);
 	  HAL_Delay(1);
    /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	  GpioPinWrite(&so_pin, GPIO_PIN_SET);
+      GpioPinToggle(&user_pin.pin[user_led]);
 	  HAL_Delay(10);
-	  GpioPinWrite(&so_pin, GPIO_PIN_RESET);
 
   }
-  serial_set_mode(RAW, false);
-  time_print(NULL);
+  serial_set_mode(RAW);
+  time_print(shdl, "in Main");
   HAL_Delay(1);
   while(1){};
 

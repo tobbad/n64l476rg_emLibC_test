@@ -35,7 +35,7 @@ extern "C" {
 #include "common.h"
 #include "ringbuffer_config.h"
 #include "ringbuffer.h"
-#include "gpio.h"
+#include "_gpio.h"
 #include "serial.h"
 #include "_time.h"
 
