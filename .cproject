@@ -79,9 +79,9 @@
 						</toolChain>
 					</folderInfo>
 					<sourceEntries>
+						<entry excluding="emLibC/build|emLibC/common/test|emLibC/common/src/slip.c|emLibC/wire/src/spi.c|emLibC/wire/src/i2c.c|emLibC/port/src/stm/stm32f4|emLibC/port/src/stm/stm32f3|emLibC/device|emLibC/test" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="lib"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Core"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Drivers"/>
-						<entry excluding="emLibC/common/test|emLibC/common/src/slip.c|emLibC/wire/src/spi.c|emLibC/wire/src/i2c.c|emLibC/port/src/stm/stm32f4|emLibC/port/src/stm/stm32f3|emLibC/device|emLibC/test" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="lib"/>
 					</sourceEntries>
 				</configuration>
 			</storageModule>
@@ -156,9 +156,9 @@
 						</toolChain>
 					</folderInfo>
 					<sourceEntries>
+						<entry excluding="emLibC/build|emLibC/common/test|emLibC/common/src/slip.c|emLibC/wire/src/spi.c|emLibC/wire/src/i2c.c|emLibC/port/src/stm/stm32f4|emLibC/port/src/stm/stm32f3|emLibC/device|emLibC/test" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="lib"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Core"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Drivers"/>
-						<entry excluding="emLibC/common/test|emLibC/common/src/slip.c|emLibC/wire/src/spi.c|emLibC/wire/src/i2c.c|emLibC/port/src/stm/stm32f4|emLibC/port/src/stm/stm32f3|emLibC/device|emLibC/test" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="lib"/>
 					</sourceEntries>
 				</configuration>
 			</storageModule>

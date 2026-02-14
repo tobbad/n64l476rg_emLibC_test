@@ -88,7 +88,8 @@ static void MX_USART2_UART_Init(void);
   * @brief  The application entry point.
   * @retval int
   */
-int main(void){
+int main(void)
+{
 
   /* USER CODE BEGIN 1 */
 
@@ -144,7 +145,7 @@ int main(void){
 	  GpioPinToggle(&user_pin.pin[user_led]);
 	  printf("%s"NL, tx_buffer);
 	  HAL_Delay(1);
-   /* USER CODE END WHILE */
+    /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
       GpioPinToggle(&user_pin.pin[user_led]);
@@ -294,8 +295,7 @@ void Error_Handler(void)
   }
   /* USER CODE END Error_Handler_Debug */
 }
-
-#ifdef  USE_FULL_ASSERT
+#ifdef USE_FULL_ASSERT
 /**
   * @brief  Reports the name of the source file and the source line number
   *         where the assert_param error has occurred.
