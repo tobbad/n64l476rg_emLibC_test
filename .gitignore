@@ -1,0 +1,16 @@
+build/
+Debug/
+Release/
+*.o
+*.a
+*.elf
+*.bin
+*.map
+compile_commands.json
+.settings/
+.mxproject 
+*.launch
+Core/Src/githash.c
+Core/Inc/githash.h
+*.zip 
+Documentation/
