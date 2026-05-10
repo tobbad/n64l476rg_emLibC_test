@@ -31,7 +31,6 @@ extern "C" {
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "githash.h"
 #include "common.h"
 #include "buffer.h"
 #include "msystem.h"
@@ -44,6 +43,7 @@ extern "C" {
 #include "ssd1306.h"
 #include "ssd1306_fonts.h"
 #include "ssd1306_tests.h"
+#include "githash.h"
 #include "display.h"
 
 
@@ -59,6 +59,7 @@ extern "C" {
 extern UART_HandleTypeDef huart2;
 extern buffer_t urx_buffer;
 extern buffer_t utx_buffer;
+extern time_handle_t   timehdl;
 #define USB_TX_BUFFER_SIZE 1024
 #ifndef TX_BUFFER_SIZE
 #define TX_BUFFER_SIZE 96

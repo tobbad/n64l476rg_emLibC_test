@@ -26,6 +26,7 @@ extern "C" {
 #endif
 
 /* Private includes ----------------------------------------------------------*/
+#include "msystem.h"
 /* USER CODE BEGIN Includes */
 
 /* USER CODE END Includes */
@@ -37,6 +38,7 @@ extern "C" {
 
 /* Exported constants --------------------------------------------------------*/
 /* USER CODE BEGIN EC */
+extern int64_t irqtime[SYSTEM_SLOT_CNT];
 
 /* USER CODE END EC */
 

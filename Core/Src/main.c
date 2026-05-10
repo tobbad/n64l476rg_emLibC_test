@@ -55,7 +55,7 @@ DMA_HandleTypeDef  hdma_usart2_rx;
 /* USER CODE BEGIN PV */
 
 dev_handle_t sDev;
-gpio_port_t  user_pin = {
+gpio_port_t  _user_pin = {
      .cnt = 3,
      .pin = {
         { .port = GPIOA, .pin = GPIO_PIN_9, .def = false, .inv = true, .conf = { .Mode = GPIO_MODE_OUTPUT_PP, .Speed = GPIO_SPEED_FREQ_LOW, .Pull = GPIO_NOPULL } },
@@ -144,7 +144,7 @@ int main(void) {
     timehdl = time_new("timehdl");
     HAL_TIM_Base_Start_IT(&htim1);
     HAL_TIM_Base_Start(&htim1);
-    GpioPortInit(&user_pin);
+    GpioPortInit(&_user_pin);
     sDev = keyboard_init(&serial_dev, &serial);
     VPRINT("*************" NL);
     printf("*************" NL);
@@ -158,7 +158,7 @@ int main(void) {
         printf("sizeof(state_t) =      %d" NL, sizeof(state_t));
 #ifdef HAL_PCD_MODULE_ENABLED
         printf("USB is active" NL);
-#elif
+#else
         printf("USB is inactive" NL);
 #endif
     }
@@ -178,7 +178,7 @@ int main(void) {
         if (scan) {
             keyboard_state(sDev, &cstate);
             if (cstate.clabel.str[0] == 'R') {
-                system_reset();
+                msystem_reset();
             }
             state_reset(&diff);
             if (keyboard_diff(sDev, &system_state, &diff)) {
@@ -188,14 +188,15 @@ int main(void) {
                 }
             }
             state_set_undirty(&system_state);
-            if (EM_OK == system_action((char *)rxb.mem)) {
+            if (EM_OK == msystem_action((char *)rxb.mem)) {
                 printf("Processed command %s" NL, rxb.mem);
             }
             buffer_reset(&rxb);
+#ifdef HAL_PCD_MODULE_ENABLED
             buffer_reset(&urx_buffer);
+#endif
             keyboard_undirty(sDev);
         }
-    }
     time_stop(timehdl, NULL);
     snprintf(text, CHAR_PER_LINE, "MX_X_CUBE_SUBG2" NL);
     time_start(timehdl, CHAR_PER_LINE, (uint8_t *)text);
