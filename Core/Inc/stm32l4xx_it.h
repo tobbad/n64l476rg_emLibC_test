@@ -26,9 +26,8 @@ extern "C" {
 #endif
 
 /* Private includes ----------------------------------------------------------*/
-#include "msystem.h"
 /* USER CODE BEGIN Includes */
-
+#include "msystem.h"
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/

@@ -20,9 +20,9 @@
 /* Includes ------------------------------------------------------------------*/
 #include "stm32l4xx_it.h"
 #include "main.h"
-#include "msystem.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "msystem.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/

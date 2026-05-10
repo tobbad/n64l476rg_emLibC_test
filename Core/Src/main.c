@@ -55,6 +55,7 @@ DMA_HandleTypeDef  hdma_usart2_rx;
 /* USER CODE BEGIN PV */
 
 dev_handle_t sDev;
+dev_handle_t eDev;
 gpio_port_t  _user_pin = {
      .cnt = 3,
      .pin = {
@@ -123,6 +124,9 @@ int main(void) {
     state_init(&cstate);
     state_t diff; // Difference state
     state_init(&diff);
+    state_t estate; // Eight keyboard state
+    state_init(&estate);
+    estate = system_state;
     /* USER CODE END Init */
 
     /* Configure the system clock */
@@ -146,6 +150,7 @@ int main(void) {
     HAL_TIM_Base_Start(&htim1);
     GpioPortInit(&_user_pin);
     sDev = keyboard_init(&serial_dev, &serial);
+    eDev = keyboard_init(&eight_dev, NULL);
     VPRINT("*************" NL);
     printf("*************" NL);
     printf("*************" NL);
@@ -169,47 +174,16 @@ int main(void) {
     /* USER CODE BEGIN WHILE */
     while (1) {
         /* USER CODE END WHILE */
-        snprintf(text, CHAR_PER_LINE, "first" NL);
-        time_start(timehdl, CHAR_PER_LINE, (uint8_t *)text);
-        int16_t scan = keyboard_scan(sDev);
-        if (strlen((char *)rxb.mem) > 0) {
-            printf("Received input: %s" NL, rxb.mem);
-        }
-        if (scan) {
-            keyboard_state(sDev, &cstate);
-            if (cstate.clabel.str[0] == 'R') {
-                msystem_reset();
-            }
-            state_reset(&diff);
-            if (keyboard_diff(sDev, &system_state, &diff)) {
-                if (state_add(&system_state, &diff)) {
-                    printf("New key pressed" NL);
-                    // system.txFrame->payload.hubCnt = 0;
-                }
-            }
-            state_set_undirty(&system_state);
-            if (EM_OK == msystem_action((char *)rxb.mem)) {
-                printf("Processed command %s" NL, rxb.mem);
-            }
-            buffer_reset(&rxb);
-#ifdef HAL_PCD_MODULE_ENABLED
-            buffer_reset(&urx_buffer);
-#endif
-            keyboard_undirty(sDev);
-        }
-    time_stop(timehdl, NULL);
-    snprintf(text, CHAR_PER_LINE, "MX_X_CUBE_SUBG2" NL);
-    time_start(timehdl, CHAR_PER_LINE, (uint8_t *)text);
 
-    /* USER CODE BEGIN 3 */
-    if ((ledCnt++ % RADIO_CNT_MAX) == 0) {
-        GpioPinToggle(&msystem.user_pin->pin[user_led]);
+        /* USER CODE BEGIN 3 */
+        if ((ledCnt++ % RADIO_CNT_MAX) == 0) {
+            GpioPinToggle(&msystem.user_pin->pin[user_led]);
+        }
+
+        HAL_Delay(CYCLE_MS);
     }
 
-    HAL_Delay(CYCLE_MS);
-}
-
-/* USER CODE END 3 */
+    /* USER CODE END 3 */
 }
 
 /**
@@ -230,7 +204,7 @@ void SystemClock_Config(void) {
      * in the RCC_OscInitTypeDef structure.
      */
     RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
-    RCC_OscInitStruct.HSEState       = RCC_HSE_BYPASS;
+    RCC_OscInitStruct.HSEState       = RCC_HSE_ON;
     RCC_OscInitStruct.PLL.PLLState   = RCC_PLL_ON;
     RCC_OscInitStruct.PLL.PLLSource  = RCC_PLLSOURCE_HSE;
     RCC_OscInitStruct.PLL.PLLM       = 1;
