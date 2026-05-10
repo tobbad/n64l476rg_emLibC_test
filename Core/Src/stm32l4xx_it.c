@@ -19,6 +19,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "system.h"
 #include "stm32l4xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -41,6 +42,7 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN PV */
+int64_t irqtime[SYSTEM_SLOT_CNT];
 
 /* USER CODE END PV */
 
@@ -55,6 +57,8 @@
 /* USER CODE END 0 */
 
 /* External variables --------------------------------------------------------*/
+extern RNG_HandleTypeDef hrng;
+extern TIM_HandleTypeDef htim1;
 extern DMA_HandleTypeDef hdma_usart2_tx;
 extern DMA_HandleTypeDef hdma_usart2_rx;
 /* USER CODE BEGIN EV */
@@ -225,6 +229,88 @@ void DMA1_Channel7_IRQHandler(void)
   /* USER CODE BEGIN DMA1_Channel7_IRQn 1 */
 
   /* USER CODE END DMA1_Channel7_IRQn 1 */
+}
+
+/**
+  * @brief This function handles TIM1 update interrupt and TIM16 global interrupt.
+  */
+void TIM1_UP_TIM16_IRQHandler(void)
+{
+  /* USER CODE BEGIN TIM1_UP_TIM16_IRQn 0 */
+
+  /* USER CODE END TIM1_UP_TIM16_IRQn 0 */
+  HAL_TIM_IRQHandler(&htim1);
+  /* USER CODE BEGIN TIM1_UP_TIM16_IRQn 1 */
+	switch (rb_system.sync_state) {
+		case SYNCHRONIZE :{
+			rb_set_slot(rb_system.slot);
+			rb_system.sync_state = SYNCHRONIZE_DOING;
+			break;
+		}
+		case SYNCHRONIZE_OK:
+		case SYNCHRONIZE_DOING:
+		case SYNCHRONIZE_READY:
+		case SYNCHRONIZE_ERROR:{
+			rb_system.subSlot++;
+			if (rb_system.subSlot >= TIME_IRQ_PER_SLOT*SYSTEM_SLOT_CNT){
+				rb_system.subSlot = 0;
+			}
+			rb_system.sslot++;
+			if (rb_system.sslot >= TIME_IRQ_PER_SLOT){
+				rb_system.sslot = 0;
+			}
+			rb_system.sslot = rb_system.subSlot % (TIME_IRQ_PER_SLOT);
+			rb_user_led_toggle(radio_led);
+	        if (rb_system.sslot==0) {
+                GpioPinToggle(&rb_system.user_pin->pin[user_led]);
+                rb_system.actSlot++;
+                if (rb_system.actSlot >= SYSTEM_SLOT_CNT){
+                    rb_system.actSlot= 0;
+                }
+                if (rb_system.cycle==0){
+                    irqtime[rb_system.actSlot] = time_now_ns();
+                }
+                if (rb_system.actSlot == 0){
+                    rb_system.cycle +=1;
+                }
+	        }
+	        break;
+		}
+		default: ;
+	}
+    //stateled_show(rb_system.sync_state);
+    //display_update();
+    //keyboard_scan(tDev);
+    //keyboard_scan(eDev);
+  /* USER CODE END TIM1_UP_TIM16_IRQn 1 */
+}
+
+/**
+  * @brief This function handles EXTI line[15:10] interrupts.
+  */
+void EXTI15_10_IRQHandler(void)
+{
+  /* USER CODE BEGIN EXTI15_10_IRQn 0 */
+
+  /* USER CODE END EXTI15_10_IRQn 0 */
+  HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_13);
+  /* USER CODE BEGIN EXTI15_10_IRQn 1 */
+
+  /* USER CODE END EXTI15_10_IRQn 1 */
+}
+
+/**
+  * @brief This function handles RNG global interrupt.
+  */
+void RNG_IRQHandler(void)
+{
+  /* USER CODE BEGIN RNG_IRQn 0 */
+
+  /* USER CODE END RNG_IRQn 0 */
+  HAL_RNG_IRQHandler(&hrng);
+  /* USER CODE BEGIN RNG_IRQn 1 */
+
+  /* USER CODE END RNG_IRQn 1 */
 }
 
 /* USER CODE BEGIN 1 */

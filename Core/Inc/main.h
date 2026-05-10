@@ -31,13 +31,21 @@ extern "C" {
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "assert.h"
+#include "githash.h"
 #include "common.h"
-#include "ringbuffer_config.h"
-#include "ringbuffer.h"
+#include "buffer.h"
+#include "system.h"
+#include "keyboard.h"
 #include "_gpio.h"
 #include "serial.h"
 #include "_time.h"
+#include "xpad.h"
+#include "display.h"
+#include "ssd1306.h"
+#include "ssd1306_fonts.h"
+#include "ssd1306_tests.h"
+#include "display.h"
+
 
 /* USER CODE END Includes */
 
@@ -49,14 +57,25 @@ extern "C" {
 /* Exported constants --------------------------------------------------------*/
 /* USER CODE BEGIN EC */
 extern UART_HandleTypeDef huart2;
-extern gpio_pin_t uart_toggle;
-extern bool doLoop;
+extern buffer_t urx_buffer;
+extern buffer_t utx_buffer;
+#define USB_TX_BUFFER_SIZE 1024
+#ifndef TX_BUFFER_SIZE
+#define TX_BUFFER_SIZE 96
+#endif
+#ifndef RX_BUFFER_SIZE
+#define RX_BUFFER_SIZE TX_BUFFER_SIZE
+#endif
 
 /* USER CODE END EC */
 
 /* Exported macro ------------------------------------------------------------*/
 /* USER CODE BEGIN EM */
-#define LINE_LENGTH	96
+#if OPTION_VERBOSE == 1
+    #define  VPRINT(...) fprintf(stdout, __VA_ARGS__)
+#else
+    #define VPRINT(...)
+#endif
 
 /* USER CODE END EM */
 
@@ -68,6 +87,10 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define disp_scl_Pin GPIO_PIN_8
+#define disp_scl_GPIO_Port GPIOB
+#define disp_sda_Pin GPIO_PIN_9
+#define disp_sda_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 

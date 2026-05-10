@@ -42,6 +42,12 @@ extern dev_handle_t sDev;
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+I2C_HandleTypeDef hi2c1;
+
+RNG_HandleTypeDef hrng;
+
+TIM_HandleTypeDef htim1;
+
 UART_HandleTypeDef huart2;
 DMA_HandleTypeDef hdma_usart2_tx;
 DMA_HandleTypeDef hdma_usart2_rx;
@@ -63,11 +69,12 @@ typedef enum {
   time_pin,
 } led_e;
 
-bool doLoop=1;
+buffer_t urx_buffer = { .size = USB_TX_BUFFER_SIZE, .type = RING };
+buffer_t utx_buffer = { .size = USB_TX_BUFFER_SIZE, .type = RING };
 static buffer_t rxb = {.size = RX_BUFFER_SIZE};
 static buffer_t txb = {.size = TX_BUFFER_SIZE};
 sio_t serial = {.uart = &huart2, .buffer = {&rxb, &txb}, .mode = RAW | TIMESTAMP};
-
+time_handle_t   timehdl;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -75,13 +82,24 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_DMA_Init(void);
 static void MX_USART2_UART_Init(void);
+static void MX_I2C1_Init(void);
+static void MX_RNG_Init(void);
+static void MX_TIM1_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
+uint32_t Get_Random_Value(void) {
+    uint32_t random_num = 0;
+    // This function automatically waits for DRDY (Data Ready)
+    if (HAL_RNG_GenerateRandomNumber(&hrng, &random_num) != HAL_OK) {
+        // Generation Error
+        Error_Handler();
+    }
+    return random_num;
+}
 /* USER CODE END 0 */
 
 /**
@@ -101,7 +119,14 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-
+    state_t       system_state;
+    state_init(&system_state);
+    system_state.first = 1;
+    system_state.cnt   = MY_BUTTON_CNT;
+    cstate = system_state;
+    state_init(&cstate);
+    state_t diff; // Difference state
+    state_init(&diff);
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -115,47 +140,84 @@ int main(void)
   MX_GPIO_Init();
   MX_DMA_Init();
   MX_USART2_UART_Init();
+  MX_I2C1_Init();
+  MX_RNG_Init();
+  MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
-  GpioPortInit(&user_pin);
-  sDev = keyboard_init(&serial_dev, &serial);
-  printf(""NL);
-  printf("*******"NL);
-  //HAL_Delay(1);
-  printf("Started"NL);
-  //HAL_Delay(1);
-  rbuf_init();
-  char tx_buffer[LINE_LENGTH];
-  memset(tx_buffer, 0 , LINE_LENGTH);
-  for (uint8_t i=0;i<LINE_LENGTH-2; i++){
-	  tx_buffer[i]='0'+(i%10);
-	  if (i%10==0){
-		  tx_buffer[i]='0'+(i/10);
-	  }
-  }
-  HAL_Delay(1);
-
-
+    time_init(); // must be called after SystemClock_Config()
+    timehdl = time_new("timehdl");
+    HAL_TIM_Base_Start_IT(&htim1);
+    HAL_TIM_Base_Start(&htim1);
+    GpioPortInit(&user_pin);
+    sDev = keyboard_init(&serial_dev, &serial);
+    VPRINT("*************" NL);
+    printf("*************" NL);
+    printf("*************" NL);
+    printf("Start logging" NL);
+    if (strlen(git_hash)) {
+        printf("Git hash    = %s:" NL, git_hash);
+        printf("MCU Series  = %s" NL, MCU);
+        board_get_unique_id((unsigned char*)&uniq_id, sizeof(uint32_t));
+        printf("UNIQ ID     = 0x%08lx" NL, uniq_id);
+        printf("sizeof(AppliFrame_t) = %d" NL, APPLIFRAME_SIZE_ON_AIR);
+        printf("sizeof(payload_t) =    %d" NL, sizeof(payload_t));
+        printf("sizeof(state_t) =      %d" NL, sizeof(state_t));
+#ifdef HAL_PCD_MODULE_ENABLED
+        printf("USB is active" NL);
+#elif
+        printf("USB is inactive" NL);
+#endif
+    }
+    time_print(stxhdl, "Serial after startup", true, false);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  while (doLoop)
-  {
-	  uint32_t time=HAL_GetTick();
-	  GpioPinToggle(&user_pin.pin[user_led]);
-	  printf("%s"NL, tx_buffer);
-	  HAL_Delay(1);
+  while (1) {
     /* USER CODE END WHILE */
+    snprintf(text, CHAR_PER_LINE, "first"NL);
+    time_start(timehdl, CHAR_PER_LINE, (uint8_t*)text);
+        int16_t scan = keyboard_scan(rb_system.sDev);
+        if (strlen((char *)rxb.mem) > 0) {
+            printf("Received input: %s" NL, rxb.mem);
+        }
+        if (scan) {
+            keyboard_state(rb_system.sDev, &cstate);
+            if (cstate.clabel.str[0] == 'D') {
+                persistent_delete_reboot();
+            }
+            if (cstate.clabel.str[0] == 'R') {
+               system_reset();
+            }
+            state_reset(&diff);
+            if (keyboard_diff(rb_system.sDev, &system_state, &diff)) {
+                if (state_add(&system_state, &diff))
+                    system.txFrame->payload.hubCnt = 0;
+            }
+            state_merge(&system_state, &rb_system.txFrame->payload.state);
+            state_set_undirty(&system_state);
+            keyboard_set_state(rb_system.eDev, &system_state);
+            if (EM_OK == system_action((char *)rxb.mem)) {
+                ;
+            }
+            buffer_reset(&rxb);
+            buffer_reset(&urx_buffer);
+            keyboard_undirty(system.sDev);
+        }
+    }
+    AppliFrame_Undirty(rb_system.rxFrame);
+    time_stop(timehdl, NULL);
+    snprintf(text, CHAR_PER_LINE, "MX_X_CUBE_SUBG2"NL);
+    time_start(timehdl, CHAR_PER_LINE, (uint8_t*)text);
 
     /* USER CODE BEGIN 3 */
-      GpioPinToggle(&user_pin.pin[user_led]);
-	  HAL_Delay(10);
+       if ((ledCnt++ % RADIO_CNT_MAX) == 0) {
+            GpioPinToggle(&rb_system.user_pin->pin[user_led]);
+        }
+ 
+	  HAL_Delay(CYCLE_MS);
 
   }
-  serial_set_mode(RAW);
-  time_print(shdl, "in Main");
-  HAL_Delay(1);
-  while(1){};
 
   /* USER CODE END 3 */
 }
@@ -179,11 +241,15 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_MSI;
-  RCC_OscInitStruct.MSIState = RCC_MSI_ON;
-  RCC_OscInitStruct.MSICalibrationValue = 0;
-  RCC_OscInitStruct.MSIClockRange = RCC_MSIRANGE_6;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.HSEState = RCC_HSE_BYPASS;
+  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+  RCC_OscInitStruct.PLL.PLLM = 1;
+  RCC_OscInitStruct.PLL.PLLN = 20;
+  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV7;
+  RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV2;
+  RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV2;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -193,15 +259,136 @@ void SystemClock_Config(void)
   */
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
                               |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_MSI;
+  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK)
   {
     Error_Handler();
   }
+}
+
+/**
+  * @brief I2C1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_I2C1_Init(void)
+{
+
+  /* USER CODE BEGIN I2C1_Init 0 */
+
+  /* USER CODE END I2C1_Init 0 */
+
+  /* USER CODE BEGIN I2C1_Init 1 */
+
+  /* USER CODE END I2C1_Init 1 */
+  hi2c1.Instance = I2C1;
+  hi2c1.Init.Timing = 0x10D19CE4;
+  hi2c1.Init.OwnAddress1 = 0;
+  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c1.Init.OwnAddress2 = 0;
+  hi2c1.Init.OwnAddress2Masks = I2C_OA2_NOMASK;
+  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure Analogue filter
+  */
+  if (HAL_I2CEx_ConfigAnalogFilter(&hi2c1, I2C_ANALOGFILTER_ENABLE) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure Digital filter
+  */
+  if (HAL_I2CEx_ConfigDigitalFilter(&hi2c1, 0) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN I2C1_Init 2 */
+
+  /* USER CODE END I2C1_Init 2 */
+
+}
+
+/**
+  * @brief RNG Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_RNG_Init(void)
+{
+
+  /* USER CODE BEGIN RNG_Init 0 */
+
+  /* USER CODE END RNG_Init 0 */
+
+  /* USER CODE BEGIN RNG_Init 1 */
+
+  /* USER CODE END RNG_Init 1 */
+  hrng.Instance = RNG;
+  if (HAL_RNG_Init(&hrng) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN RNG_Init 2 */
+
+  /* USER CODE END RNG_Init 2 */
+
+}
+
+/**
+  * @brief TIM1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM1_Init(void)
+{
+
+  /* USER CODE BEGIN TIM1_Init 0 */
+
+  /* USER CODE END TIM1_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM1_Init 1 */
+
+  /* USER CODE END TIM1_Init 1 */
+  htim1.Instance = TIM1;
+  htim1.Init.Prescaler = 20;
+  htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim1.Init.Period = 9523;
+  htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim1.Init.RepetitionCounter = 0;
+  htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim1, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterOutputTrigger2 = TIM_TRGO2_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim1, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM1_Init 2 */
+
+  /* USER CODE END TIM1_Init 2 */
+
 }
 
 /**
@@ -265,12 +452,26 @@ static void MX_DMA_Init(void)
   */
 static void MX_GPIO_Init(void)
 {
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
   /* USER CODE BEGIN MX_GPIO_Init_1 */
 
   /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
+  __HAL_RCC_GPIOC_CLK_ENABLE();
+  __HAL_RCC_GPIOH_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
+
+  /*Configure GPIO pin : PC13 */
+  GPIO_InitStruct.Pin = GPIO_PIN_13;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 
