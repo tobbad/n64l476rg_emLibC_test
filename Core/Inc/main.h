@@ -34,7 +34,7 @@ extern "C" {
 #include "githash.h"
 #include "common.h"
 #include "buffer.h"
-#include "system.h"
+#include "msystem.h"
 #include "keyboard.h"
 #include "_gpio.h"
 #include "serial.h"

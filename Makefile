@@ -23,7 +23,7 @@ check:
 	done
 
 format: 
-	$@echo "Running clang-format..."
+	@echo "Running clang-format..."
 	find . -iregex '.*\.\(c\|h|cpp|py\)'| xargs clang-format -i
 
 print-%  : ; @echo $* = $($*)

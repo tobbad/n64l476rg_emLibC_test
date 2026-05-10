@@ -10,9 +10,8 @@
 #include "ssd1306_fonts.h"
 #include "state.h"
 
-
-const allign_e def_alli = Centered;
-char *state_to_str[LOC_CNT] = {
+const allign_e def_alli              = Centered;
+char          *state_to_str[LOC_CNT] = {
     (char *)&"OF",
     (char *)&"BL",
     (char *)&"ON",
@@ -57,10 +56,10 @@ void display_init(state_t *state, uint16_t cycle_size, const SSD1306_Font_t *fon
     if (HAL_I2C_IsDeviceReady(&hi2c1, SSD1306_I2C_ADDR, 3, 100) == HAL_OK) {
         // Display erreichbar
         ssd1306_Init();
-    } else{
+    } else {
         // Bus immer noch blockiert – Hardware prüfen
-        my_display.init   = false;
-        printf("No display"NL);
+        my_display.init = false;
+        printf("No display" NL);
         return;
     }
     ssd1306_SetDisplayOn(true);
@@ -106,7 +105,7 @@ void display_update() {
 void display_clear_line(line_e lineNr) {
     if (my_display.init) return;
     uint8_t y_start = lineNr * DOT_PER_LINE;
-    uint8_t y_stop = (lineNr + 1) * DOT_PER_LINE - 1;
+    uint8_t y_stop  = (lineNr + 1) * DOT_PER_LINE - 1;
     ssd1306_FillRectangle(0, y_start, SSD1306_WIDTH - 1, y_stop, Black);
     ssd1306_UpdateScreen();
 }
@@ -153,9 +152,9 @@ static void display_states_update(bool doShowLine) {
             memcpy(&my_display.line[STATE].line[2 * i], state_to_str[my_display.state->state[idx]], 2);
         }
     }
-    uint16_t crc = common_crc16((uint8_t *)&my_display.line[STATE].line, CHAR_PER_LINE - 1);
+    uint16_t crc                 = common_crc16((uint8_t *)&my_display.line[STATE].line, CHAR_PER_LINE - 1);
     my_display.line[STATE].dirty = (crc != my_display.line[STATE].crc);
-    my_display.line[STATE].crc = crc;
+    my_display.line[STATE].crc   = crc;
     my_display.dirty |= my_display.line[STATE].dirty;
 }
 

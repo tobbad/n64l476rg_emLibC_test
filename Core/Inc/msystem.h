@@ -19,7 +19,7 @@
 #define TX_BUFFER_SIZE 96
 #endif
 #ifndef RX_BUFFER_SIZE
-#define RX_BUFFER_SIZE sizeof(AppliFrame_t)
+#define RX_BUFFER_SIZE TX_BUFFER_SIZE
 #endif
 
 #define CYCLE_MS           3        // Time in ms for loop
@@ -36,16 +36,16 @@
 #define TIME_SUB_SLOT_DURATIOM_MS 2.5
 #define ACTIVE_SLOT_USAGE 0.5
 
-typedef struct system_s{
+typedef struct msystem_s{
     uint8_t      actSlot;
     uint8_t      subSlot;
     uint8_t      slot;
-    uint8_t      sslot;
+    uint8_t      sSlot;
     uint32_t     cycle;
     gpio_port_t  *user_pin;
     system_state_e sync_state;
     state_t *    system_state;
-} system_t;
+} msystem_t;
 
 typedef enum {
   user_led,
@@ -54,17 +54,17 @@ typedef enum {
   SYSTEM_USER_LED_LED_CNT
 } user_pin_e;
 
-extern system_t system;
-void system_init(state_t * system_state);
-void system_reset();
-void system_synchronize();
-em_msg system_set_slot(int8_t slot);
-int8_t system_check_slot(int8_t slot);
-system_state_e system_check_sync();
-em_msg system_action(char *cmd);
-em_msg system_user_led_on(user_pin_e nr);
-em_msg system_user_led_off(user_pin_e nr);
-em_msg system_user_led_toggle(user_pin_e nr);
+extern msystem_t msystem;
+void msystem_init(state_t * system_state);
+void msystem_reset();
+void msystem_synchronize();
+em_msg msystem_set_slot(int8_t slot);
+int8_t msystem_check_slot(int8_t slot);
+system_state_e msystem_check_sync();
+em_msg msystem_action(char *cmd);
+em_msg msystem_user_led_on(user_pin_e nr);
+em_msg msystem_user_led_off(user_pin_e nr);
+em_msg msystem_user_led_toggle(user_pin_e nr);
 
 
 #endif /* INC_SYSTEM_H_ */
