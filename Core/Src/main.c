@@ -56,15 +56,6 @@ DMA_HandleTypeDef  hdma_usart2_rx;
 
 dev_handle_t sDev;
 dev_handle_t eDev;
-gpio_port_t  _user_pin = {
-     .cnt = 3,
-     .pin = {
-        { .port = GPIOA, .pin = GPIO_PIN_9, .def = false, .inv = true, .conf = { .Mode = GPIO_MODE_OUTPUT_PP, .Speed = GPIO_SPEED_FREQ_LOW, .Pull = GPIO_NOPULL } },
-        { .port = GPIOC, .pin = GPIO_PIN_7, .def = false, .inv = true, .conf = { .Mode = GPIO_MODE_OUTPUT_PP, .Speed = GPIO_SPEED_FREQ_LOW, .Pull = GPIO_NOPULL } },
-        { .port = GPIOC, .pin = GPIO_PIN_5, .def = false, .inv = false, .conf = { .Mode = GPIO_MODE_OUTPUT_PP, .Speed = GPIO_SPEED_FREQ_LOW, .Pull = GPIO_NOPULL } },
-    }
-};
-
 static buffer_t rxb    = { .size = RX_BUFFER_SIZE };
 static buffer_t txb    = { .size = TX_BUFFER_SIZE };
 sio_t           serial = { .uart = &huart2, .buffer = { &rxb, &txb }, .mode = RAW | TIMESTAMP };
@@ -148,7 +139,7 @@ int main(void) {
     timehdl = time_new("timehdl");
     HAL_TIM_Base_Start_IT(&htim1);
     HAL_TIM_Base_Start(&htim1);
-    GpioPortInit(&_user_pin);
+    msystem_init(&system_state);
     sDev = keyboard_init(&serial_dev, &serial);
     eDev = keyboard_init(&eight_dev, NULL);
     VPRINT("*************" NL);
@@ -167,6 +158,11 @@ int main(void) {
         printf("USB is inactive" NL);
 #endif
     }
+    uint32_t primask = __get_PRIMASK();
+    __disable_irq();
+    msystem.sync_state = SYNCHRONIZE;  // ← atomar gegenüber TIM1-IRQ
+    __set_PRIMASK(primask);
+
     time_print(stxhdl, "Serial after startup", true, false);
     /* USER CODE END 2 */
 
