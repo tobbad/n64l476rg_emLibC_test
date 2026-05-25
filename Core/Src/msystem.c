@@ -5,6 +5,7 @@
  *      Author: badi
  */
 #include "msystem.h"
+#include "cycle.h"
 #include "main.h"
 #include "serial.h"
 #include "stateled.h"
@@ -56,10 +57,11 @@ void resetAction(char *para) {
 }
 
 void stateAction(char *para) {
-    printf("slot    = %d" NL, msystem.slot);
-    printf("subSlot = %d" NL, msystem.subSlot);
-    printf("sSlot   = %d" NL, msystem.sSlot);
-    printf("actSlot = %d" NL, msystem.actSlot);
+    printf("slot      = %d" NL, msystem.slot);
+    printf("subSlot   = %d" NL, msystem.cycle.subSlot);
+    printf("sSlot     = %d" NL, ACT_SUB_SLOT(&msystem.cycle));
+    printf("actSlot   = %d" NL, ACT_SLOT(&msystem.cycle));
+    printf("cycle cnt = %d" NL, msystem.cycle.cycle);
 }
 
 typedef struct cmd2action_s {
@@ -111,10 +113,8 @@ void msystem_init(state_t *system_state) {
     msystem.user_pin     = &user_pin;
     msystem.system_state = system_state;
     msystem.sync_state   = SYNC_RESET;
-    msystem.actSlot      = 0;
     msystem.slot         = -1;
-    msystem.subSlot      = 0;
-    msystem.cycle        = 0;
+    cycle_init(&msystem.cycle);
     GpioPortInit(msystem.user_pin);
     cmda2action.max_len = 0;
     for (uint8_t i = 0; i < cmda2action.cnt; i++) {
@@ -125,10 +125,8 @@ void msystem_init(state_t *system_state) {
 }
 
 em_msg msystem_set_slot(int8_t slot) {
-    if (msystem_check_slot(slot) >= 0) {
-        msystem.actSlot = slot;
-        msystem.subSlot = slot * TIME_IRQ_PER_SLOT;
-        msystem.sSlot   = 0;
+    if (cycle_check_slot(slot) >= 0) {
+        cycle_set_slot(&msystem.cycle, slot);
         return EM_OK;
     } else {
         return EM_ERR;
