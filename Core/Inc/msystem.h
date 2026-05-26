@@ -8,6 +8,7 @@
 #ifndef INC_SYSTEM_H_
 #define INC_SYSTEM_H_
 #include "common.h"
+#include "cycle.h"
 #include "gpio_port.h"
 #include "buffer.h"
 #include "device.h"
@@ -22,14 +23,13 @@
 #define RX_BUFFER_SIZE TX_BUFFER_SIZE
 #endif
 
-#define CYCLE_MS           3        // Time in ms for loop
+#define CYCLE_MS           30        // Time in ms for loop
 #define RADIO_CNT_MAX      120
 #define BLINKING_CNT       500  // Key led blinking update multiplied by slot time
 #define BLINKING_IT_CNT    5
 #define BUF_SIZ 16
 #define MY_SLOT_CNT 8
 #define SLOT_CNT 16
-#define SYSTEM_SLOT_CNT 16
 #define MAX_SEND_SUB_SLOT_CNT 2
 #define TIME_IRQ_PER_SLOT 9
 #define SYSTEM_IRQ_PER_CYCLE SYSTEM_SLOT_CNT*TIME_IRQ_PER_SLOT
@@ -37,11 +37,8 @@
 #define ACTIVE_SLOT_USAGE 0.5
 
 typedef struct msystem_s{
-    uint8_t      actSlot;
-    uint8_t      subSlot;
     uint8_t      slot;
-    uint8_t      sSlot;
-    uint32_t     cycle;
+    cycle_t      cycle;
     gpio_port_t  *user_pin;
     system_state_e sync_state;
     state_t *    system_state;

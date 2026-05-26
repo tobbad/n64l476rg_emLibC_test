@@ -67,6 +67,7 @@ extern time_handle_t   timehdl;
 #ifndef RX_BUFFER_SIZE
 #define RX_BUFFER_SIZE TX_BUFFER_SIZE
 #endif
+#define SLOT_PRINT_FMT "(c:%5d, %2d, %2d)" //length is 19
 
 /* USER CODE END EC */
 
