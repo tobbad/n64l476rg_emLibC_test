@@ -51,6 +51,9 @@ typedef enum {
   user_led,
   radio_led,
   debug_pin,
+  slot_pin,
+  sSlot_pin,
+  cycle_pin,
   SYSTEM_USER_LED_LED_CNT
 } user_pin_e;
 

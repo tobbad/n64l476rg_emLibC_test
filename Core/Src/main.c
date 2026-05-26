@@ -173,7 +173,7 @@ int main(void) {
 
         /* USER CODE BEGIN 3 */
         if ((ledCnt++ % RADIO_CNT_MAX) == 0) {
-            GpioPinToggle(&msystem.user_pin->pin[user_led]);
+            msystem_user_led_toggle(user_led);
         }
 
         HAL_Delay(CYCLE_MS);

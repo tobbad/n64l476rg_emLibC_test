@@ -21,11 +21,14 @@
 #define COMMAND_LEN 15
 // clang-format off
 gpio_port_t user_pin = {
-    .cnt = 3,
+    .cnt = 6,
     .pin = {
-        {.port = GPIOA, .pin = GPIO_PIN_9, .def = false, .inv = true,  .conf = {.Mode = GPIO_MODE_OUTPUT_PP, .Speed = GPIO_SPEED_FREQ_LOW, .Pull = GPIO_NOPULL}}, //  user_led_,
-        {.port = GPIOC, .pin = GPIO_PIN_7, .def = false, .inv = true,  .conf = {.Mode = GPIO_MODE_OUTPUT_PP, .Speed = GPIO_SPEED_FREQ_LOW, .Pull = GPIO_NOPULL}}, //  radio_led_,
-        {.port = GPIOD, .pin = GPIO_PIN_2, .def = false, .inv = false, .conf = {.Mode = GPIO_MODE_OUTPUT_PP, .Speed = GPIO_SPEED_FREQ_LOW, .Pull = GPIO_NOPULL}}, //  debug_pin_,
+        {.port = GPIOA, .pin = GPIO_PIN_9,  .def = false, .inv = true,  .conf = {.Mode = GPIO_MODE_OUTPUT_PP, .Speed = GPIO_SPEED_FREQ_LOW, .Pull = GPIO_NOPULL}}, //  user_led_,
+        {.port = GPIOC, .pin = GPIO_PIN_7,  .def = false, .inv = true,  .conf = {.Mode = GPIO_MODE_OUTPUT_PP, .Speed = GPIO_SPEED_FREQ_LOW, .Pull = GPIO_NOPULL}}, //  radio_led_,
+        {.port = GPIOD, .pin = GPIO_PIN_2,  .def = false, .inv = false, .conf = {.Mode = GPIO_MODE_OUTPUT_PP, .Speed = GPIO_SPEED_FREQ_LOW, .Pull = GPIO_NOPULL}}, //  debug_pin_,
+        {.port = GPIOB, .pin = GPIO_PIN_15, .def = false, .inv = false, .conf = {.Mode = GPIO_MODE_OUTPUT_PP, .Speed = GPIO_SPEED_FREQ_LOW, .Pull = GPIO_NOPULL}}, //  slot_pin,
+        {.port = GPIOB, .pin = GPIO_PIN_14, .def = false, .inv = false, .conf = {.Mode = GPIO_MODE_OUTPUT_PP, .Speed = GPIO_SPEED_FREQ_LOW, .Pull = GPIO_NOPULL}}, //  sSlot_pin,
+        {.port = GPIOB, .pin = GPIO_PIN_13, .def = false, .inv = false, .conf = {.Mode = GPIO_MODE_OUTPUT_PP, .Speed = GPIO_SPEED_FREQ_LOW, .Pull = GPIO_NOPULL}}, //  sSlot_pin,
     }
 };
 // clang-format on

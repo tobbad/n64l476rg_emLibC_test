@@ -243,9 +243,9 @@ void TIM1_UP_TIM16_IRQHandler(void) {
                 msystem.sSlot = 0;
             }
             msystem.sSlot = msystem.subSlot % (TIME_IRQ_PER_SLOT);
-            msystem_user_led_toggle(radio_led);
+            msystem_user_led_toggle(slot_pin);
             if (msystem.sSlot == 0) {
-                msystem_user_led_toggle(user_led);
+                msystem_user_led_toggle(sSlot_pin);
                 msystem.actSlot++;
                 if (msystem.actSlot >= SYSTEM_SLOT_CNT) {
                     msystem.actSlot = 0;
@@ -254,6 +254,7 @@ void TIM1_UP_TIM16_IRQHandler(void) {
                     irqtime[msystem.actSlot] = time_now_ns();
                 }
                 if (msystem.actSlot == 0) {
+                    msystem_user_led_toggle(cycle_pin);
                     msystem.cycle += 1;
                 }
             }
@@ -261,10 +262,6 @@ void TIM1_UP_TIM16_IRQHandler(void) {
         }
         default:;
     }
-    // stateled_show(msystem.sync_state);
-    // display_update();
-    // keyboard_scan(tDev);
-    // keyboard_scan(eDev);
     /* USER CODE END TIM1_UP_TIM16_IRQn 1 */
 }
 
