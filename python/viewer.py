@@ -969,9 +969,10 @@ class MainWindow(QMainWindow):
 
 def main():
     import os
-    # Suppress harmless "Wayland does not support QWindow::requestActivate()"
-    # warnings that appear when running Qt5 on a Wayland compositor.
-    os.environ.setdefault("QT_LOGGING_RULES", "qt.qpa.wayland*=false")
+    # Suppress harmless desktop-integration warnings:
+    #   - "Wayland does not support QWindow::requestActivate()" (Qt5 on Wayland)
+    #   - "KServiceTypeTrader: serviceType ThumbCreator not found" (KDE file dialog)
+    os.environ["QT_LOGGING_RULES"] = "qt.qpa.wayland*=false;kf.service*=false"
 
     app = QApplication(sys.argv)
     app.setApplicationName("RadioBell Log Viewer")
