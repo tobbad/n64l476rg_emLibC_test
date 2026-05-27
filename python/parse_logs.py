@@ -219,41 +219,59 @@ def generate_output(all_frames):
     ]
 
     for f in all_frames:
-        state_items = ', '.join(f"'{k}': '{v}'" for k, v in f['state'].items())
-        lines += [
+        row = [
             '    {',
             f"        't_ms': {f['t_ms']:010d},",
             f"        'source_file': '{f['source_file']}',",
             f"        'device_slot': {f['device_slot']},",
             f"        'type': '{f['type']}',",
             f"        'tick': {f['tick']},",
-            f"        'af_slot': {f['af_slot']},",
-            f"        'pl_slot': {f['pl_slot']},",
-            f"        'hubCnt': {f['hubCnt']},",
-            f"        'state': {{{state_items}}},",
-            f"        'dirty': {f['dirty']},",
-            '    },',
         ]
+        if f['type'] in ('TX', 'RX'):
+            state_items = ', '.join(f"'{k}': '{v}'" for k, v in f['state'].items())
+            row += [
+                f"        'af_slot': {f['af_slot']},",
+                f"        'pl_slot': {f['pl_slot']},",
+                f"        'hubCnt': {f['hubCnt']},",
+                f"        'state': {{{state_items}}},",
+                f"        'dirty': {f['dirty']},",
+            ]
+        elif f['type'] == 'ACK_RX':
+            row.append(f"        'from_slot': {f['from_slot']},")
+        row.append('    },')
+        lines += row
 
     lines += [']', '']
     return '\n'.join(lines)
 
 
-def print_timeline(all_frames):
+def print_timeline(all_events):
     header = (
-        f"{'t_ms':>10}  {'dev':>3}  {'typ':>2}  "
-        f"{'af':>2}  {'pl':>2}  {'hub':>3}  {'dirty':>5}  active states"
+        f"{'t_ms':>10}  {'dev':>3}  {'type':<6}  info"
     )
     print()
     print(header)
-    print('-' * len(header))
-    for f in all_frames:
-        active = ' '.join(f"{k}={v}" for k, v in f['state'].items() if v != 'OFF') or '-'
-        print(
-            f"{f['t_ms']:010d}  {f['device_slot']:>3}  {f['type']:>2}  "
-            f"{f['af_slot']:>2}  {f['pl_slot']:>2}  {f['hubCnt']:>3}  "
-            f"{'Y' if f['dirty'] else 'N':>5}  {active}"
-        )
+    print('-' * 60)
+    for e in all_events:
+        t = f"{e['t_ms']:010d}"
+        dev = f"{e['device_slot']:>3}"
+        typ = e['type']
+
+        if typ in ('TX', 'RX'):
+            active = ' '.join(
+                f"{k}={v}" for k, v in e['state'].items() if v != 'OFF'
+            ) or '-'
+            dirty = 'D' if e['dirty'] else ' '
+            info = (
+                f"af={e['af_slot']:>2}  pl={e['pl_slot']:>2}  "
+                f"hub={e['hubCnt']:>2}  {dirty}  {active}"
+            )
+        elif typ == 'ACK_TX':
+            info = '>> ACK sent'
+        else:  # ACK_RX
+            info = f"<< ACK from slot {e['from_slot']}"
+
+        print(f"{t}  {dev}  {typ:<6}  {info}")
     print()
 
 
@@ -267,9 +285,11 @@ def main():
     for log_file in log_files:
         with open(log_file, encoding='utf-8', errors='replace') as fh:
             raw = fh.readlines()
-        frames = parse_frames(log_file.name, raw)
+        frames = parse_events(log_file.name, raw)
         slot = frames[0]['device_slot'] if frames else '?'
-        print(f"{log_file.name}: {len(frames)} frames  (device slot {slot})")
+        n_data = sum(1 for f in frames if f['type'] in ('TX', 'RX'))
+        n_ack  = sum(1 for f in frames if f['type'] in ('ACK_TX', 'ACK_RX'))
+        print(f"{log_file.name}: {n_data} frames, {n_ack} ACKs  (device slot {slot})")
         all_frames.extend(frames)
 
     all_frames = deduplicate(all_frames)
@@ -286,11 +306,12 @@ def main():
     slots: dict = {}
     for f in all_frames:
         k = f['device_slot']
-        slots.setdefault(k, {'TX': 0, 'RX': 0})
+        slots.setdefault(k, {'TX': 0, 'RX': 0, 'ACK_TX': 0, 'ACK_RX': 0})
         slots[k][f['type']] += 1
     print("\nPer device:")
     for s in sorted(slots):
-        print(f"  slot {s}: {slots[s]['TX']} TX, {slots[s]['RX']} RX")
+        d = slots[s]
+        print(f"  slot {s}: {d['TX']} TX  {d['RX']} RX  {d['ACK_TX']} ACK>  {d['ACK_RX']} ACK<")
 
 
 if __name__ == '__main__':
