@@ -186,9 +186,12 @@ HELP_HTML = """
 </ul>
 
 <h3>Command-line usage</h3>
+<p><b>Wichtig:</b> Immer <code>viewer.py</code> zuerst angeben —
+<code>python viewer.py log/*</code>, <b>nicht</b> <code>python log/*</code>.</p>
 <pre>
   python viewer.py                          # open GUI empty
   python viewer.py log/slot_1.txt …        # pre-load files
+  ./viewer.py log/*                        # shortcut (Linux/Mac)
   python viewer.py /dev/ttyUSB0            # auto-connect serial (Linux)
   python viewer.py COM3                    # auto-connect serial (Windows)
 </pre>
