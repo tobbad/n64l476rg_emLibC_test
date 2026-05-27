@@ -59,10 +59,16 @@ def parse_device_slot(lines):
     return None
 
 
-def parse_frames(source_file, lines):
+def parse_events(source_file, lines):
+    """
+    Extract all events from a log file:
+      - type='TX'/'RX'  : TXFRAME / RXFRAME data frames
+      - type='ACK_TX'   : SM_STATE_SEND_ACK (without >>>, i.e. actually sent)
+      - type='ACK_RX'   : SM_STATE_ACK_RECEIVED from slot X
+    """
     device_slot = parse_device_slot(lines)
     anchors = parse_anchors(lines)
-    frames = []
+    events = []
     i = 0
 
     while i < len(lines):
@@ -71,83 +77,94 @@ def parse_frames(source_file, lines):
             i += 1
             continue
 
+        # ── DATA frames ──────────────────────────────────────────────────────
         m = re.match(r'(TXFRAME|RXFRAME)\s*\(c:\s*(\d+),\s*(\d+),\s*(\d+)\)', msg)
-        if not m:
+        if m:
+            frame = {
+                'source_file': source_file,
+                'device_slot': device_slot,
+                'type': 'TX' if m.group(1) == 'TXFRAME' else 'RX',
+                'tick': tick,
+                '_epoch_ms': tick_to_epoch_ms(tick, anchors) if anchors else None,
+                'af_slot': None,
+                'pl_slot': None,
+                'hubCnt': None,
+                'state': {},
+                'dirty': False,
+            }
+            labels = None
+            j = i + 1
+            max_j = min(i + 15, len(lines))
+            while j < max_j:
+                _, msg2 = extract_tick_msg(lines[j])
+                if msg2 is None:
+                    j += 1
+                    continue
+                m_af = re.match(r'AF\s+slot\s*=\s*(\d+)', msg2)
+                if m_af:
+                    frame['af_slot'] = int(m_af.group(1)); j += 1; continue
+                m_pl = re.match(r'PL\s+slot\s*=\s*(\d+)', msg2)
+                if m_pl:
+                    frame['pl_slot'] = int(m_pl.group(1)); j += 1; continue
+                m_hub = re.match(r'hubCnt\s*=\s*(\d+)', msg2)
+                if m_hub:
+                    frame['hubCnt'] = int(m_hub.group(1)); j += 1; continue
+                if msg2 == 'state':
+                    j += 1; continue
+                m_label = re.match(r'label\s*=\s*(.*)', msg2)
+                if m_label:
+                    labels = m_label.group(1).split(); j += 1; continue
+                m_state = re.match(r'State\s*=\s*(.*)', msg2)
+                if m_state and labels is not None:
+                    values = m_state.group(1).split()
+                    frame['state'] = {
+                        labels[k].lower(): values[k]
+                        for k in range(min(len(labels), len(values)))
+                    }
+                    j += 1; continue
+                if msg2 == 'Dirty':
+                    frame['dirty'] = True; j += 1; break
+                break
+            events.append(frame)
+            i = j
+            continue
+
+        # ── ACK sent (only bare "SM_STATE_SEND_ACK", not ">>> ...") ──────────
+        if re.match(r'SM_STATE_SEND_ACK\s*$', msg):
+            # The ACK_OK tick on the next few lines is the actual send moment
+            ack_tick = tick
+            for k in range(i + 1, min(i + 4, len(lines))):
+                t2, msg2 = extract_tick_msg(lines[k])
+                if msg2 and re.match(r'rb_system\.txFrame->Cmd\s*=\s*ACK_OK', msg2):
+                    ack_tick = t2
+                    break
+            events.append({
+                'source_file': source_file,
+                'device_slot': device_slot,
+                'type': 'ACK_TX',
+                'tick': ack_tick,
+                '_epoch_ms': tick_to_epoch_ms(ack_tick, anchors) if anchors else None,
+            })
             i += 1
             continue
 
-        frame = {
-            'source_file': source_file,
-            'device_slot': device_slot,
-            'type': 'TX' if m.group(1) == 'TXFRAME' else 'RX',
-            'tick': tick,
-            '_epoch_ms': tick_to_epoch_ms(tick, anchors) if anchors else None,
-            'af_slot': None,
-            'pl_slot': None,
-            'hubCnt': None,
-            'state': {},
-            'dirty': False,
-        }
+        # ── ACK received ──────────────────────────────────────────────────────
+        m_ack = re.match(r'SM_STATE_ACK_RECEIVED\s+from\s+slot\s+(\d+)', msg)
+        if m_ack:
+            events.append({
+                'source_file': source_file,
+                'device_slot': device_slot,
+                'type': 'ACK_RX',
+                'tick': tick,
+                '_epoch_ms': tick_to_epoch_ms(tick, anchors) if anchors else None,
+                'from_slot': int(m_ack.group(1)),
+            })
+            i += 1
+            continue
 
-        labels = None
-        j = i + 1
-        max_j = min(i + 15, len(lines))
+        i += 1
 
-        while j < max_j:
-            _, msg2 = extract_tick_msg(lines[j])
-            if msg2 is None:
-                j += 1
-                continue
-
-            m_af = re.match(r'AF\s+slot\s*=\s*(\d+)', msg2)
-            if m_af:
-                frame['af_slot'] = int(m_af.group(1))
-                j += 1
-                continue
-
-            m_pl = re.match(r'PL\s+slot\s*=\s*(\d+)', msg2)
-            if m_pl:
-                frame['pl_slot'] = int(m_pl.group(1))
-                j += 1
-                continue
-
-            m_hub = re.match(r'hubCnt\s*=\s*(\d+)', msg2)
-            if m_hub:
-                frame['hubCnt'] = int(m_hub.group(1))
-                j += 1
-                continue
-
-            if msg2 == 'state':
-                j += 1
-                continue
-
-            m_label = re.match(r'label\s*=\s*(.*)', msg2)
-            if m_label:
-                labels = m_label.group(1).split()
-                j += 1
-                continue
-
-            m_state = re.match(r'State\s*=\s*(.*)', msg2)
-            if m_state and labels is not None:
-                values = m_state.group(1).split()
-                frame['state'] = {
-                    labels[k].lower(): values[k]
-                    for k in range(min(len(labels), len(values)))
-                }
-                j += 1
-                continue
-
-            if msg2 == 'Dirty':
-                frame['dirty'] = True
-                j += 1
-                break
-
-            break
-
-        frames.append(frame)
-        i = j
-
-    return frames
+    return events
 
 
 def assign_t_ms(all_frames):
@@ -165,15 +182,15 @@ def assign_t_ms(all_frames):
         f['t_ms'] = (f['_epoch_ms'] - origin) if f['_epoch_ms'] is not None else 0
 
 
-def deduplicate(all_frames):
-    """Remove frames with identical (device_slot, tick) — same physical event."""
+def deduplicate(all_events):
+    """Remove events with identical (device_slot, type, tick) — same physical event."""
     seen: set = set()
     result = []
-    for f in all_frames:
-        key = (f['device_slot'], f['tick'])
+    for e in all_events:
+        key = (e['device_slot'], e['type'], e['tick'])
         if key not in seen:
             seen.add(key)
-            result.append(f)
+            result.append(e)
     return result
 
 
