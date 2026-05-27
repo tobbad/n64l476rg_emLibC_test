@@ -43,15 +43,16 @@ try:
         QMessageBox, QAction, QTextBrowser, QSizePolicy,
     )
     from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer, QMutex, QMutexLocker
-    from PyQt5.QtGui import QColor, QBrush, QFont, QKeySequence
+    from PyQt5.QtGui import QColor, QBrush, QFont, QKeySequence, QIcon
 
-    _NO_EDIT  = QAbstractItemView.NoEditTriggers
-    _SEL_ROWS = QAbstractItemView.SelectRows
-    _H_SPLIT  = Qt.Horizontal
-    _ALIGN_R  = int(Qt.AlignRight | Qt.AlignVCenter)
-    _ALIGN_C  = int(Qt.AlignCenter)
-    _BTN_OK   = QDialogButtonBox.Ok
-    _exec     = lambda widget: widget.exec_()       # PyQt5 uses exec_()
+    _NO_EDIT      = QAbstractItemView.NoEditTriggers
+    _SEL_ROWS     = QAbstractItemView.SelectRows
+    _H_SPLIT      = Qt.Horizontal
+    _ALIGN_R      = int(Qt.AlignRight | Qt.AlignVCenter)
+    _ALIGN_C      = int(Qt.AlignCenter)
+    _BTN_OK       = QDialogButtonBox.Ok
+    _SCROLLBAR_ON = Qt.ScrollBarAlwaysOn
+    _exec         = lambda widget: widget.exec_()   # PyQt5 uses exec_()
 
 except ImportError:
     from PyQt6.QtWidgets import (
@@ -62,15 +63,16 @@ except ImportError:
         QMessageBox, QAction, QTextBrowser, QSizePolicy,
     )
     from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer, QMutex, QMutexLocker
-    from PyQt6.QtGui import QColor, QBrush, QFont, QKeySequence
+    from PyQt6.QtGui import QColor, QBrush, QFont, QKeySequence, QIcon
 
-    _NO_EDIT  = QAbstractItemView.EditTrigger.NoEditTriggers
-    _SEL_ROWS = QAbstractItemView.SelectionBehavior.SelectRows
-    _H_SPLIT  = Qt.Orientation.Horizontal
-    _ALIGN_R  = int(Qt.AlignmentFlag.AlignRight  | Qt.AlignmentFlag.AlignVCenter)
-    _ALIGN_C  = int(Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter)
-    _BTN_OK   = QDialogButtonBox.StandardButton.Ok
-    _exec     = lambda widget: widget.exec()        # PyQt6 uses exec()
+    _NO_EDIT      = QAbstractItemView.EditTrigger.NoEditTriggers
+    _SEL_ROWS     = QAbstractItemView.SelectionBehavior.SelectRows
+    _H_SPLIT      = Qt.Orientation.Horizontal
+    _ALIGN_R      = int(Qt.AlignmentFlag.AlignRight  | Qt.AlignmentFlag.AlignVCenter)
+    _ALIGN_C      = int(Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter)
+    _BTN_OK       = QDialogButtonBox.StandardButton.Ok
+    _SCROLLBAR_ON = Qt.ScrollBarPolicy.ScrollBarAlwaysOn
+    _exec         = lambda widget: widget.exec()    # PyQt6 uses exec()
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -588,8 +590,10 @@ class MainWindow(QMainWindow):
         self._pending: list[dict]          = []
         self._mutex    = QMutex()
         self._auto_scroll = True
+        self._paused      = False
 
         self._build_menu_bar()
+        self._build_toolbar()
         self._build_central_widget()
         self._build_status_bar()
 
@@ -597,6 +601,26 @@ class MainWindow(QMainWindow):
         self._flush_timer = QTimer(self)
         self._flush_timer.timeout.connect(self._flush_pending)
         self._flush_timer.start(250)
+
+    # ── Toolbar ───────────────────────────────────────────────────────────────
+
+    def _build_toolbar(self):
+        toolbar = self.addToolBar("Controls")
+        toolbar.setMovable(False)
+
+        self._pause_action = QAction("Pause", self)
+        self._pause_action.setCheckable(True)
+        self._pause_action.setShortcut(QKeySequence("Space"))
+        self._pause_action.setStatusTip(
+            "Pause live display (Space) — events keep accumulating in the background")
+        self._pause_action.toggled.connect(self._toggle_pause)
+        toolbar.addAction(self._pause_action)
+
+    def _toggle_pause(self, paused: bool):
+        self._paused = paused
+        self._pause_action.setText("Resume" if paused else "Pause")
+        if not paused:
+            self._flush_pending()   # immediately show events that arrived while paused
 
     # ── Menu bar ──────────────────────────────────────────────────────────────
 
@@ -711,6 +735,34 @@ class MainWindow(QMainWindow):
 
         layout.addStretch()
 
+        # Legend
+        legend_group  = QGroupBox("Legende")
+        legend_layout = QVBoxLayout(legend_group)
+        legend_layout.setSpacing(3)
+
+        def _swatch_row(colour: str, text: str) -> QWidget:
+            row    = QWidget()
+            hbox   = QHBoxLayout(row)
+            hbox.setContentsMargins(0, 0, 0, 0)
+            hbox.setSpacing(5)
+            swatch = QLabel()
+            swatch.setFixedSize(14, 14)
+            swatch.setStyleSheet(
+                f"background: {colour}; border: 1px solid #888; border-radius: 2px;")
+            hbox.addWidget(swatch)
+            hbox.addWidget(QLabel(text))
+            hbox.addStretch()
+            return row
+
+        for _, (label, colour) in EVENT_TYPES.items():
+            legend_layout.addWidget(_swatch_row(colour, label.split("–")[0].strip()))
+
+        dev_label = QLabel("dev = Slot-Farbe")
+        dev_label.setStyleSheet("font-size: 8pt; color: #555;")
+        legend_layout.addWidget(dev_label)
+
+        layout.addWidget(legend_group)
+
         # Active sources list
         sources_group = QGroupBox("Active sources")
         sources_vbox  = QVBoxLayout(sources_group)
@@ -731,6 +783,7 @@ class MainWindow(QMainWindow):
         self._table.setSortingEnabled(False)
         self._table.verticalHeader().setDefaultSectionSize(22)
         self._table.verticalHeader().setVisible(False)
+        self._table.setVerticalScrollBarPolicy(_SCROLLBAR_ON)
         self._table.setFont(
             QFont("Consolas", 9) if sys.platform == "win32"
             else QFont("Monospace", 9)
@@ -813,6 +866,8 @@ class MainWindow(QMainWindow):
 
     def _flush_pending(self):
         """Called by timer in the main thread every 250 ms."""
+        if self._paused:
+            return
         with QMutexLocker(self._mutex):
             if not self._pending:
                 return
@@ -875,14 +930,18 @@ class MainWindow(QMainWindow):
     def _insert_row(self, event: dict, visible: bool = True):
         """Append one row to the table."""
         background = QBrush(QColor(EVENT_TYPES.get(event["type"], ("", "#FFFFFF"))[1]))
+        slot = event.get("device_slot")
+        slot_brush = (QBrush(QColor(SLOT_PALETTE[slot % len(SLOT_PALETTE)]))
+                      if slot is not None else background)
         row_values = event_to_row(event)
+        dev_col    = COL_IDX["dev"]
 
         row = self._table.rowCount()
         self._table.insertRow(row)
 
         for col_idx, (col_name, _, _, alignment) in enumerate(COLUMNS):
             item = QTableWidgetItem(row_values[col_idx])
-            item.setBackground(background)
+            item.setBackground(slot_brush if col_idx == dev_col else background)
             item.setTextAlignment(alignment)
             self._table.setItem(row, col_idx, item)
 
@@ -972,16 +1031,21 @@ class MainWindow(QMainWindow):
 
 def main():
     import os
-    # Suppress harmless desktop-integration warnings:
-    #   - "Wayland does not support QWindow::requestActivate()" (Qt5 on Wayland)
-    #   - "KServiceTypeTrader: serviceType ThumbCreator not found" (KDE file dialog)
+    # Force X11 backend so setWindowIcon() works on KDE Wayland (XWayland).
+    # Without this the Wayland compositor ignores the icon entirely.
+    os.environ.setdefault("QT_QPA_PLATFORM", "xcb")
     os.environ["QT_LOGGING_RULES"] = "qt.qpa.wayland*=false;kf.service*=false"
 
     app = QApplication(sys.argv)
     app.setApplicationName("RadioBell Log Viewer")
     app.setStyle("Fusion")   # consistent look on Windows and Linux
 
+    icon_path = Path(__file__).resolve().parent / "viewer_icon.png"
+    icon = QIcon(str(icon_path)) if icon_path.exists() else QIcon()
+    app.setWindowIcon(icon)
+
     window = MainWindow()
+    window.setWindowIcon(icon)
     window.show()
 
     # Handle command-line arguments:

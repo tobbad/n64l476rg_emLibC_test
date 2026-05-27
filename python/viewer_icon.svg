@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+
+  <!-- Background -->
+  <rect width="256" height="256" rx="48" fill="#1B3A6B"/>
+
+  <!-- Radio waves (left of bell, arcs centred on bell body) -->
+  <g fill="none" stroke-linecap="round">
+    <path d="M 88 148 A 50 50 0 0 1 88 82" stroke="#4DA6FF" stroke-width="9"  opacity="0.95"/>
+    <path d="M 72 160 A 78 78 0 0 1 72 70" stroke="#4DA6FF" stroke-width="7"  opacity="0.65"/>
+    <path d="M 56 172 A 106 106 0 0 1 56 58" stroke="#4DA6FF" stroke-width="5" opacity="0.35"/>
+  </g>
+
+  <!-- Bell: hanger -->
+  <rect x="122" y="68" width="12" height="14" rx="6" fill="white"/>
+
+  <!-- Bell: dome + body as a single smooth path -->
+  <!-- Moves: top-centre → arc over dome → straight down sides → flare out at skirt -->
+  <path d="
+    M 128 80
+    C 128 80, 170 82, 170 120
+    L 170 148
+    Q 170 152, 166 153
+    L 90  153
+    Q 86  152, 86  148
+    L 86  120
+    C 86  82, 128 80, 128 80
+    Z
+  " fill="white"/>
+
+  <!-- Skirt (flared bottom edge) -->
+  <path d="M 78 153 Q 128 170 178 153" stroke="white" stroke-width="12"
+        fill="none" stroke-linecap="round"/>
+
+  <!-- Clapper -->
+  <circle cx="128" cy="168" r="8" fill="#4DA6FF"/>
+
+  <!-- Log lines (suggest the viewer table) -->
+  <rect x="92" y="184" width="72" height="6" rx="3" fill="white" opacity="0.60"/>
+  <rect x="92" y="196" width="55" height="6" rx="3" fill="white" opacity="0.38"/>
+  <rect x="92" y="208" width="40" height="6" rx="3" fill="white" opacity="0.20"/>
+
+</svg>
