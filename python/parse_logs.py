@@ -5,9 +5,9 @@ Parse device log files from python/log/*.txt and generate
 python/simulation/simulation_data.py containing all TXFRAME/RXFRAME events
 as a list of dicts with AppliFrame/Payload/State fields.
 
-Unified wall-clock timestamps are derived from the [TX]...[RX] anchor lines
-embedded in each log file (PC timestamps paired with device tick counters).
-Device ticks run at ~1 ms/tick.
+A unified tick t_ms (ms since first event across all devices) is derived from
+the [TX]...[RX] anchor lines embedded in each log file.  Device ticks run at
+~1 ms/tick.  Duplicate frames (same device, same tick) are removed.
 """
 import re
 from datetime import datetime
@@ -16,15 +16,12 @@ from pathlib import Path
 LOG_DIR = Path(__file__).parent / "log"
 OUTPUT_FILE = Path(__file__).parent / "simulation" / "simulation_data.py"
 
-# Matches the PC-side anchor lines:
-#   22.05.2026 13:17:42.070 [RX] - 0000001065:
 _ANCHOR_RE = re.compile(
     r'(\d{2}\.\d{2}\.\d{4}\s+\d{2}:\d{2}:\d{2}\.\d{3})\s+\[RX\]\s+-\s+(\d{10}):'
 )
 
 
 def extract_tick_msg(line):
-    """Return (tick:int, msg:str) from a log line, handling PC-timestamp prefix."""
     m = re.search(r'(\d{10}):\s*(.*)', line)
     if m:
         return int(m.group(1)), m.group(2).strip()
@@ -32,39 +29,29 @@ def extract_tick_msg(line):
 
 
 def parse_anchors(lines):
-    """
-    Extract (wall_ms:int, device_tick:int) pairs from lines that contain
-    a [RX] PC timestamp.  wall_ms is milliseconds since the Unix epoch.
-    """
+    """Return list of (epoch_ms, device_tick) from [RX] anchor lines."""
     anchors = []
     for line in lines:
         m = _ANCHOR_RE.search(line)
         if m:
             dt = datetime.strptime(m.group(1), '%d.%m.%Y %H:%M:%S.%f')
-            wall_ms = int(dt.timestamp() * 1000)
-            tick = int(m.group(2))
-            anchors.append((wall_ms, tick))
+            anchors.append((int(dt.timestamp() * 1000), int(m.group(2))))
     return anchors
 
 
-def tick_to_wall_ms(tick, anchors):
-    """
-    Convert a device tick to wall time (ms since epoch).
-    Uses the most recent anchor whose tick <= frame tick.
-    """
+def tick_to_epoch_ms(tick, anchors):
+    """Convert device tick to epoch ms using the closest prior anchor."""
     best = None
-    for wall_ms, anchor_tick in anchors:
+    for epoch_ms, anchor_tick in anchors:
         if anchor_tick <= tick:
             if best is None or anchor_tick > best[1]:
-                best = (wall_ms, anchor_tick)
+                best = (epoch_ms, anchor_tick)
     if best is None:
-        # No prior anchor – extrapolate from the earliest one
         best = min(anchors, key=lambda a: a[1])
     return best[0] + (tick - best[1])
 
 
 def parse_device_slot(lines):
-    """Extract the device's own slot number from the EEPROM header section."""
     for line in lines:
         _, msg = extract_tick_msg(line)
         if msg and re.match(r'my_slot\s*=\s*(\d+)', msg):
@@ -73,19 +60,6 @@ def parse_device_slot(lines):
 
 
 def parse_frames(source_file, lines):
-    """
-    Walk through log lines and extract every TXFRAME/RXFRAME block.
-
-    Each block looks like:
-        NNNNNNNNNN: TXFRAME (c: XX, YY, ZZ)
-        NNNNNNNNNN: AF slot    = X
-        NNNNNNNNNN: PL slot    = X
-        NNNNNNNNNN: hubCnt     = X
-        NNNNNNNNNN: state
-        NNNNNNNNNN: label      =  0   1  ... F
-        NNNNNNNNNN: State      = OFF BLI ... OFF
-        NNNNNNNNNN: Dirty          <- optional; absent means dirty=False
-    """
     device_slot = parse_device_slot(lines)
     anchors = parse_anchors(lines)
     frames = []
@@ -102,14 +76,12 @@ def parse_frames(source_file, lines):
             i += 1
             continue
 
-        wall_ms = tick_to_wall_ms(tick, anchors) if anchors else None
-
         frame = {
             'source_file': source_file,
             'device_slot': device_slot,
             'type': 'TX' if m.group(1) == 'TXFRAME' else 'RX',
             'tick': tick,
-            'wall_ms': wall_ms,
+            '_epoch_ms': tick_to_epoch_ms(tick, anchors) if anchors else None,
             'af_slot': None,
             'pl_slot': None,
             'hubCnt': None,
@@ -170,7 +142,6 @@ def parse_frames(source_file, lines):
                 j += 1
                 break
 
-            # Any other line ends the frame block
             break
 
         frames.append(frame)
@@ -179,16 +150,34 @@ def parse_frames(source_file, lines):
     return frames
 
 
-def _fmt_wall(wall_ms):
-    """Format wall_ms (epoch ms) as HH:MM:SS.mmm string."""
-    if wall_ms is None:
-        return '??:??:??.???'
-    dt = datetime.fromtimestamp(wall_ms / 1000)
-    return dt.strftime('%H:%M:%S.') + f'{wall_ms % 1000:03d}'
+def assign_t_ms(all_frames):
+    """
+    Set t_ms on every frame: ms since the earliest event across all devices.
+    Same zero-padded style as device ticks.
+    """
+    valid = [f for f in all_frames if f['_epoch_ms'] is not None]
+    if not valid:
+        for f in all_frames:
+            f['t_ms'] = 0
+        return
+    origin = min(f['_epoch_ms'] for f in valid)
+    for f in all_frames:
+        f['t_ms'] = (f['_epoch_ms'] - origin) if f['_epoch_ms'] is not None else 0
+
+
+def deduplicate(all_frames):
+    """Remove frames with identical (device_slot, tick) — same physical event."""
+    seen: set = set()
+    result = []
+    for f in all_frames:
+        key = (f['device_slot'], f['tick'])
+        if key not in seen:
+            seen.add(key)
+            result.append(f)
+    return result
 
 
 def generate_output(all_frames):
-    """Render simulation_data.py content from parsed frames (sorted by wall_ms)."""
     now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     lines = [
         '#!/usr/bin/env python3',
@@ -196,19 +185,18 @@ def generate_output(all_frames):
         f'# Auto-generated by parse_logs.py on {now}',
         '# Source: python/log/*.txt',
         '#',
-        "# Each entry corresponds to one TXFRAME or RXFRAME captured in the device logs.",
-        "# Sorted by wall_ms (unified wall-clock time across all devices).",
-        "# Fields:",
-        "#   source_file  – which log file this came from",
-        "#   device_slot  – slot number of the device that produced this log",
+        '# Sorted by t_ms (unified ms counter, 0 = first event across all devices).',
+        '# Fields:',
+        '#   t_ms         – unified tick: ms since first event (same style as device ticks)',
+        '#   source_file  – which log file this came from',
+        '#   device_slot  – slot number of the device that produced this log',
         "#   type         – 'TX' (sent by device) or 'RX' (received by device)",
-        "#   tick         – firmware tick counter (ms since device boot)",
-        "#   wall_ms      – unified wall-clock time in ms since Unix epoch",
-        "#   af_slot      – AppliFrame slot field",
-        "#   pl_slot      – Payload slot field",
-        "#   hubCnt       – hub counter",
-        "#   state        – dict of hex-label -> 'OFF'/'BLI'/'ON' for all 16 keys",
-        "#   dirty        – True if the Dirty flag was set",
+        '#   tick         – original device tick counter',
+        '#   af_slot      – AppliFrame slot field',
+        '#   pl_slot      – Payload slot field',
+        '#   hubCnt       – hub counter',
+        "#   state        – dict hex-label -> 'OFF'/'BLI'/'ON' for all 16 keys",
+        '#   dirty        – True if the Dirty flag was set',
         '',
         'frames = [',
     ]
@@ -217,11 +205,11 @@ def generate_output(all_frames):
         state_items = ', '.join(f"'{k}': '{v}'" for k, v in f['state'].items())
         lines += [
             '    {',
+            f"        't_ms': {f['t_ms']:010d},",
             f"        'source_file': '{f['source_file']}',",
             f"        'device_slot': {f['device_slot']},",
             f"        'type': '{f['type']}',",
             f"        'tick': {f['tick']},",
-            f"        'wall_ms': {f['wall_ms']},",
             f"        'af_slot': {f['af_slot']},",
             f"        'pl_slot': {f['pl_slot']},",
             f"        'hubCnt': {f['hubCnt']},",
@@ -235,24 +223,19 @@ def generate_output(all_frames):
 
 
 def print_timeline(all_frames):
-    """Print a human-readable timeline sorted by wall_ms."""
-    min_ms = min(f['wall_ms'] for f in all_frames if f['wall_ms'] is not None)
-
-    header = f"{'t [ms]':>8}  {'wall time':>12}  {'dev':>3}  {'typ':>2}  {'af':>2}  {'pl':>2}  {'hub':>3}  {'dirty':>5}  active states"
+    header = (
+        f"{'t_ms':>10}  {'dev':>3}  {'typ':>2}  "
+        f"{'af':>2}  {'pl':>2}  {'hub':>3}  {'dirty':>5}  active states"
+    )
     print()
     print(header)
     print('-' * len(header))
-
-    for f in sorted(all_frames, key=lambda x: x['wall_ms'] or 0):
-        rel = (f['wall_ms'] - min_ms) if f['wall_ms'] is not None else -1
-        wall = _fmt_wall(f['wall_ms'])
-        active = ' '.join(
-            f"{k}={v}" for k, v in f['state'].items() if v != 'OFF'
-        ) or '-'
+    for f in all_frames:
+        active = ' '.join(f"{k}={v}" for k, v in f['state'].items() if v != 'OFF') or '-'
         print(
-            f"{rel:8d}  {wall:>12}  {f['device_slot']:>3}  "
-            f"{f['type']:>2}  {f['af_slot']:>2}  {f['pl_slot']:>2}  "
-            f"{f['hubCnt']:>3}  {'Y' if f['dirty'] else 'N':>5}  {active}"
+            f"{f['t_ms']:010d}  {f['device_slot']:>3}  {f['type']:>2}  "
+            f"{f['af_slot']:>2}  {f['pl_slot']:>2}  {f['hubCnt']:>3}  "
+            f"{'Y' if f['dirty'] else 'N':>5}  {active}"
         )
     print()
 
@@ -272,26 +255,25 @@ def main():
         print(f"{log_file.name}: {len(frames)} frames  (device slot {slot})")
         all_frames.extend(frames)
 
-    # Sort globally by wall clock time
-    all_frames.sort(key=lambda f: f['wall_ms'] or 0)
+    all_frames = deduplicate(all_frames)
+    assign_t_ms(all_frames)
+    all_frames.sort(key=lambda f: f['t_ms'])
 
     print_timeline(all_frames)
 
     content = generate_output(all_frames)
     OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT_FILE.write_text(content, encoding='utf-8')
-
     print(f"Wrote {len(all_frames)} frames to {OUTPUT_FILE}")
 
-    # Summary per device
     slots: dict = {}
     for f in all_frames:
-        key = f['device_slot']
-        slots.setdefault(key, {'TX': 0, 'RX': 0})
-        slots[key][f['type']] += 1
+        k = f['device_slot']
+        slots.setdefault(k, {'TX': 0, 'RX': 0})
+        slots[k][f['type']] += 1
     print("\nPer device:")
-    for slot in sorted(slots):
-        print(f"  slot {slot}: {slots[slot]['TX']} TX, {slots[slot]['RX']} RX")
+    for s in sorted(slots):
+        print(f"  slot {s}: {slots[s]['TX']} TX, {slots[s]['RX']} RX")
 
 
 if __name__ == '__main__':
