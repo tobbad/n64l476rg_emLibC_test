@@ -1,0 +1,186 @@
+ 22.05.2026 13:17:40.977 [TX] - R 22.05.2026 13:17:42.070 [RX] - 0000001065: Got NULL pointer as port 
+0000001068: Pin 3 is not good
+0000001071: Got NULL pointer as port 
+0000001074: Pin 4 is not good
+0000001077: Got NULL pointer as port 
+0000001081: Pin 5 is not good
+0000001084: Got NULL pointer as port 
+0000001087: Pin 6 is not good
+0000001090: Maximal command length is 6
+0000001094: Keep alive is 480
+0000001096: 
+0000001098: *************
+0000001100: *************
+0000001103: Start logging
+0000001105: Git hash    = git hash=[1fb53dd828e1fec3e6f57e9a6d423c8313b758ff]:
+0000001112: MCU Series  = STM32L4xx
+0000001116: UNIQ ID     = 0x00510034
+0000001119: sizeof(AppliFrame_t) = 52
+0000001123: sizeof(payload_t) =    44
+0000001126: sizeof(state_t) =      40
+0000001130: USB is active
+0000001233: No display
+0000001235: &radio_config.data p= 0x20001b54
+0000001239: EEPROM Content
+0000001242: magic        = 0x42
+0000001245: freqRange    =    2
+0000001248: freqBand     =    2
+0000001251: RangExtender =    -1
+0000001254: my_channel   =    15
+0000001257: my_slot      =    1
+0000001260: foffset      =    0.000000
+0000001263: dirty        =    0
+0000001266: sizeof(persistent_t) = 36; sizeof(persu_t) = 40
+0000001272: Read slot= 1 and channel = 15 from EEPROM
+0000001277: SLOT (1, 3, 5, 7, 9, b, d, f)? 
+0000001281: Set slot to 1
+0000001284: CHANNEL?
+0000001286: Set channel to 15
+0000001288: FREQBAND?
+0000001291: Set freqBand to 2
+0000001293: FREQUENCY OFFSET [Hz]?
+0000001297: Set Frequency offset 0.000000
+0000002135: Radio frame size is 52 
+0000002138: Radio config
+0000002141: API Version         = S2LP_Libraries_v.1.3.0 
+0000002146: xPreambleLength     = 16 
+0000002149: xSyncLength         = 32 
+0000002153: lSyncWords          = 0x88888888
+0000002157: xFixVarLength       = 1 
+0000002161: cExtendedPktLenField= 0 
+0000002164: xCrcMode            = 0x20 
+0000002168: xFec                = 0 
+0000002171: xDataWhitening      = 1 
+0000002175: lBandwidth          = 100500 
+0000002179: lDatarate           = 38400 
+0000002183: lFreqDev            = 19985 
+0000002186: lFrequencyBase      = 433050003 
+0000002190: Modulation          = IRQ_RX_DATA_READY        
+0000002196: RssiThreshold [dBm] = -146
+0000002200: Channel             = 15
+0000002203: Slot/Subslot        = 1 / 8
+0000002207: Serial Timing in startup
+0000002210: Handle stxhdl
+0000002213: //     tick, duration_ns count  baud 
+0000002217:     [    4,    3575808,   41,    91727 ],
+0000002222:     [    3,    3317760,   38,    91628 ],
+0000002227:     [    3,    2363392,   27,    91394 ],
+0000002232:     [    4,    4444160,   51,    91805 ],
+0000002237:     [    5,    4792320,   55,    91813 ],
+0000002242:     [    5,    4792320,   55,    91813 ],
+0000002247:     [    5,    4792320,   55,    91813 ],
+0000002252:     [    5,    4796416,   55,    91735 ],
+0000002257:     [    5,    4788224,   55,    91892 ],
+0000002262:     [    5,    4792320,   55,    91813 ],
+0000002267: ]
+0000002268: USB TX Timing in startup
+0000002272: Handle utxhdl
+0000002274: //     tick, duration_ns count  baud 
+0000002279:     [    0,          0,   51,        0 ],
+0000002284:     [    0,          0,    0,        0 ],
+0000002289:     [    0,          0,    0,        0 ],
+0000002294:     [    0,          0,    0,        0 ],
+0000002299:     [    0,          0,    0,        0 ],
+0000002304:     [    0,          0,    0,        0 ],
+0000002309:     [    0,          0,    0,        0 ],
+0000002313:     [    0,          0,    0,        0 ],
+0000002318:     [    0,          0,    0,        0 ],
+0000002323:     [    0,          0,    0,        0 ],
+0000002328: ]
+0000002330: Set CW@ 434550.000000 kHz
+0000002334: *********radio_verify_frequency********
+0000002339: [Radio] Base Freq= 433050003 Hz
+0000002343: [Radio] Bandwith = 100500 Hz
+0000002347: [Radio] Datarate = 38400 bps
+0000002351: Go to normal mode
+0000002354: Set Key? 
+0000002356: Set synchronisation state to SYNCHRONIZE,         
+0000002362: System state changed in radio loop to SYNCHRONIZE_READY,    (c:    0,  1,  2)
+0000002370: SM_STATE_START_RX (c:    0,  1,  5)
+0000002376: >> SM_STATE_WAIT_FOR_RX_DONE (c:    0,  2,  0)
+ 22.05.2026 13:18:03.452 [TX] - 1 22.05.2026 13:18:03.515 [RX] - 0000022506: Set me (1) as master (c:   56,  0,  5)
+0000022514: SM_STATE_SEND_DATA (c:   56,  1,  0)
+0000022519: TXFRAME (c:   56,  1,  2)
+0000022522: AF slot    = 1
+0000022525: PL slot    = 1
+0000022527: hubCnt     = 0
+0000022531: state
+0000022533: label      =  0   1   2   3   4   5   6   7   8   9   A   B   C   D   E   F  
+0000022541: State      = OFF BLI OFF OFF OFF OFF OFF OFF OFF OFF OFF OFF OFF OFF OFF OFF 
+0000022549: Dirty
+0000022551: >>> SM_STATE_WAIT_FOR_TX_DONE (c:   56,  2,  5)
+0000022559: System state changed in radio loop to SYNCHRONIZE_DOING,    (c:   56,  3,  0)
+0000022567: >>> SM_STATE_START_RX (c:   56,  3,  3)
+0000022574: SM_STATE_START_RX (c:   56,  3,  5)
+0000022580: >> SM_STATE_WAIT_FOR_RX_DONE (c:   56,  3,  7)
+0000022689: SM_STATE_DATA_RECEIVED 52 Bytes (from slot = 7) 
+0000022694: RXFRAME (c:   56,  9,  0)
+0000022698: AF slot    = 7
+0000022700: PL slot    = 1
+0000022703: hubCnt     = 1
+0000022706: state
+0000022708: label      =  0   1   2   3   4   5   6   7   8   9   A   B   C   D   E   F  
+0000022716: State      = OFF BLI OFF OFF OFF OFF OFF OFF OFF OFF OFF OFF OFF OFF OFF OFF 
+0000022724: Dirty
+0000022728: SM_STATE_TOGGLE_LED (c:   56, 10,  4)
+0000022732: >>> SM_STATE_SEND_ACK (c:   56, 10,  5)
+0000022739: Delay SEND_ACK to next valid Slot (c:   56, 11,  0)
+0000022744: SM_STATE_START_RX (c:   56, 11,  2)
+0000022751: >> SM_STATE_WAIT_FOR_RX_DONE (c:   56, 11,  4)
+0000022869: SM_STATE_SEND_ACK 
+0000022872: >>> SM_STATE_WAIT_FOR_TX_DONE (c:   57,  0,  7)
+0000022880: rb_system.txFrame->Cmd = ACK_OK (c:   57,  1,  2)
+0000022887: SM_STATE_IDLE (c:   57,  1,  4)
+0000022891: >>> SM_STATE_START_RX (c:   57,  1,  6)
+0000022898: SM_STATE_START_RX (c:   57,  2,  0)
+0000022904: >> SM_STATE_WAIT_FOR_RX_DONE (c:   57,  2,  3)
+0000022957: SM_STATE_DATA_RECEIVED 52 Bytes (from slot = 3) 
+0000022962: RXFRAME (c:   57,  4,  7)
+0000022966: AF slot    = 3
+0000022968: PL slot    = 1
+0000022971: hubCnt     = 1
+0000022974: state
+0000022976: label      =  0   1   2   3   4   5   6   7   8   9   A   B   C   D   E   F  
+0000022984: State      = OFF BLI OFF OFF OFF OFF OFF OFF OFF OFF OFF OFF OFF OFF OFF OFF 
+0000022992: Dirty
+0000022996: SM_STATE_TOGGLE_LED (c:   57,  6,  3)
+0000023000: >>> SM_STATE_SEND_ACK (c:   57,  6,  5)
+0000023007: Delay SEND_ACK to next valid Slot (c:   57,  6,  7)
+0000023012: SM_STATE_START_RX (c:   57,  7,  1)
+0000023019: >> SM_STATE_WAIT_FOR_RX_DONE (c:   57,  7,  3)
+0000023093: SM_STATE_DATA_RECEIVED 52 Bytes (from slot = 9) 
+0000023098: RXFRAME (c:   57, 11,  0)
+0000023102: AF slot    = 9
+0000023104: PL slot    = 1
+0000023107: hubCnt     = 1
+0000023110: state
+0000023112: label      =  0   1   2   3   4   5   6   7   8   9   A   B   C   D   E   F  
+0000023120: State      = OFF BLI OFF OFF OFF OFF OFF OFF OFF OFF OFF OFF OFF OFF OFF OFF 
+0000023128: Dirty
+0000023132: SM_STATE_TOGGLE_LED (c:   57, 12,  3)
+0000023136: >>> SM_STATE_SEND_ACK (c:   57, 12,  5)
+0000023143: Delay SEND_ACK to next valid Slot (c:   57, 12,  7)
+0000023148: SM_STATE_START_RX (c:   57, 13,  1)
+0000023155: >> SM_STATE_WAIT_FOR_RX_DONE (c:   57, 13,  4)
+0000023229: SM_STATE_SEND_ACK 
+0000023232: >>> SM_STATE_WAIT_FOR_TX_DONE (c:   58,  0,  7)
+0000023240: rb_system.txFrame->Cmd = ACK_OK (c:   58,  1,  2)
+0000023247: SM_STATE_IDLE (c:   58,  1,  4)
+0000023251: >>> SM_STATE_START_RX (c:   58,  1,  6)
+0000023258: SM_STATE_START_RX (c:   58,  2,  0)
+0000023264: >> SM_STATE_WAIT_FOR_RX_DONE (c:   58,  2,  3)
+0000023300: SM_STATE_ACK_RECEIVED from slot 3 (c:   58,  3,  7)
+0000023711: SM_STATE_IDLE (c:   59,  6,  1)
+0000023715: >>> SM_STATE_START_RX (c:   59,  6,  3)
+0000023722: SM_STATE_START_RX (c:   59,  6,  5)
+0000023728: >> SM_STATE_WAIT_FOR_RX_DONE (c:   59,  7,  0)
+0000023752: SM_STATE_ACK_RECEIVED from slot 7 (c:   59,  8,  0)
+0000024163: SM_STATE_IDLE (c:   60, 10,  2)
+0000024167: >>> SM_STATE_START_RX (c:   60, 10,  3)
+0000024174: SM_STATE_START_RX (c:   60, 10,  6)
+0000024180: >> SM_STATE_WAIT_FOR_RX_DONE (c:   60, 11,  0)
+0000024874: SM_STATE_ACK_RECEIVED from slot 9 (c:   62,  9,  7)
+0000025285: SM_STATE_IDLE (c:   63, 12,  1)
+0000025289: >>> SM_STATE_START_RX (c:   63, 12,  2)
+0000025296: SM_STATE_START_RX (c:   63, 12,  5)
+0000025302: >> SM_STATE_WAIT_FOR_RX_DONE (c:   63, 12,  7)
