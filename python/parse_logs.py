@@ -62,9 +62,12 @@ def parse_device_slot(lines):
 def parse_events(source_file, lines):
     """
     Extract all events from a log file:
-      - type='TX'/'RX'  : TXFRAME / RXFRAME data frames
-      - type='ACK_TX'   : SM_STATE_SEND_ACK (without >>>, i.e. actually sent)
-      - type='ACK_RX'   : SM_STATE_ACK_RECEIVED from slot X
+      - type='TX'/'RX'   : TXFRAME: / RXFRAME: data frame blocks
+      - type='ACK_TX'    : rb_system.txFrame->Cmd = ACK_OK
+      - type='ACK_RX'    : SM_STATE_ACK_RECEIVED from slot X
+      - type='KA_TX'     : Send SM_STATE_KEEP_ALIVE
+      - type='KA_RX'     : SM_STATE_KEEP_ALIVE
+      - type='DATA_RX'   : SM_STATE_DATA_RECEIVED N Bytes
     """
     device_slot = parse_device_slot(lines)
     anchors = parse_anchors(lines)
@@ -78,7 +81,7 @@ def parse_events(source_file, lines):
             continue
 
         # ── DATA frames ──────────────────────────────────────────────────────
-        m = re.match(r'(TXFRAME|RXFRAME)\s*\(c:\s*(\d+),\s*(\d+),\s*(\d+)\)', msg)
+        m = re.match(r'(TXFRAME|RXFRAME):?\s*\(c:\s*(\d+),\s*(\d+),\s*(\d+)\)', msg)
         if m:
             frame = {
                 'source_file': source_file,
@@ -86,11 +89,13 @@ def parse_events(source_file, lines):
                 'type': 'TX' if m.group(1) == 'TXFRAME' else 'RX',
                 'tick': tick,
                 '_epoch_ms': tick_to_epoch_ms(tick, anchors) if anchors else None,
-                'af_slot': None,
+                'cycle':   int(m.group(2)),
+                'af_slot': int(m.group(3)),   # sender slot (af_slot = slot in c:)
+                'subslot': int(m.group(4)),   # subslot within slot
                 'pl_slot': None,
-                'hubCnt': None,
-                'state': {},
-                'dirty': False,
+                'hubCnt':  None,
+                'state':   {},
+                'dirty':   False,
             }
             labels = None
             j = i + 1
@@ -129,35 +134,87 @@ def parse_events(source_file, lines):
             i = j
             continue
 
-        # ── ACK sent (only bare "SM_STATE_SEND_ACK", not ">>> ...") ──────────
-        if re.match(r'SM_STATE_SEND_ACK\s*$', msg):
-            # The ACK_OK tick on the next few lines is the actual send moment
-            ack_tick = tick
-            for k in range(i + 1, min(i + 4, len(lines))):
-                t2, msg2 = extract_tick_msg(lines[k])
-                if msg2 and re.match(r'rb_system\.txFrame->Cmd\s*=\s*ACK_OK', msg2):
-                    ack_tick = t2
-                    break
+        # ── ACK sent: rb_system.txFrame->Cmd = ACK_OK (c: cycle, slot, subslot) ─
+        m_ok = re.match(
+            r'rb_system\.txFrame->Cmd\s*=\s*ACK_OK\s*\(c:\s*(\d+),\s*(\d+),\s*(\d+)\)', msg)
+        if m_ok:
             events.append({
                 'source_file': source_file,
                 'device_slot': device_slot,
-                'type': 'ACK_TX',
-                'tick': ack_tick,
-                '_epoch_ms': tick_to_epoch_ms(ack_tick, anchors) if anchors else None,
+                'type':    'ACK_TX',
+                'tick':    tick,
+                '_epoch_ms': tick_to_epoch_ms(tick, anchors) if anchors else None,
+                'cycle':   int(m_ok.group(1)),
+                'af_slot': int(m_ok.group(2)),   # sender slot (= this device's slot)
+                'subslot': int(m_ok.group(3)),
             })
             i += 1
             continue
 
-        # ── ACK received ──────────────────────────────────────────────────────
-        m_ack = re.match(r'SM_STATE_ACK_RECEIVED\s+from\s+slot\s+(\d+)', msg)
+        # ── ACK received: SM_STATE_ACK_RECEIVED from slot X (c: cycle, slot, subslot) ─
+        m_ack = re.match(
+            r'SM_STATE_ACK_RECEIVED\s+from\s+slot\s+(\d+)\s*\(c:\s*(\d+),\s*(\d+),\s*(\d+)\)', msg)
         if m_ack:
             events.append({
                 'source_file': source_file,
                 'device_slot': device_slot,
-                'type': 'ACK_RX',
-                'tick': tick,
+                'type':      'ACK_RX',
+                'tick':      tick,
                 '_epoch_ms': tick_to_epoch_ms(tick, anchors) if anchors else None,
                 'from_slot': int(m_ack.group(1)),
+                'af_slot':   int(m_ack.group(1)),   # ACK sender = from_slot
+                'cycle':     int(m_ack.group(2)),
+                'subslot':   int(m_ack.group(4)),
+            })
+            i += 1
+            continue
+
+        # ── KEEP_ALIVE sent: Send SM_STATE_KEEP_ALIVE (c: cycle, slot, subslot) ─
+        m_ka_tx = re.match(
+            r'Send\s+SM_STATE_KEEP_ALIVE\s*\(c:\s*(\d+),\s*(\d+),\s*(\d+)', msg)
+        if m_ka_tx:
+            events.append({
+                'source_file': source_file,
+                'device_slot': device_slot,
+                'type':      'KA_TX',
+                'tick':      tick,
+                '_epoch_ms': tick_to_epoch_ms(tick, anchors) if anchors else None,
+                'cycle':     int(m_ka_tx.group(1)),
+                'af_slot':   int(m_ka_tx.group(2)),
+                'subslot':   int(m_ka_tx.group(3)),
+            })
+            i += 1
+            continue
+
+        # ── KEEP_ALIVE received: SM_STATE_KEEP_ALIVE (c: cycle, slot, subslot) ─
+        m_ka_rx = re.match(
+            r'SM_STATE_KEEP_ALIVE\s*\(c:\s*(\d+),\s*(\d+),\s*(\d+)', msg)
+        if m_ka_rx:
+            events.append({
+                'source_file': source_file,
+                'device_slot': device_slot,
+                'type':      'KA_RX',
+                'tick':      tick,
+                '_epoch_ms': tick_to_epoch_ms(tick, anchors) if anchors else None,
+                'cycle':     int(m_ka_rx.group(1)),
+                'af_slot':   int(m_ka_rx.group(2)),
+                'subslot':   int(m_ka_rx.group(3)),
+            })
+            i += 1
+            continue
+
+        # ── Radio bytes received: SM_STATE_DATA_RECEIVED N Bytes (from slot = X) ─
+        m_dr = re.match(
+            r'SM_STATE_DATA_RECEIVED\s+(\d+)\s+Bytes\s+\(from\s+slot\s*=\s*(\d+)\)', msg)
+        if m_dr:
+            events.append({
+                'source_file': source_file,
+                'device_slot': device_slot,
+                'type':      'DATA_RX',
+                'tick':      tick,
+                '_epoch_ms': tick_to_epoch_ms(tick, anchors) if anchors else None,
+                'af_slot':   int(m_dr.group(2)),
+                'info':      f"{m_dr.group(1)} B from slot {m_dr.group(2)}",
             })
             i += 1
             continue

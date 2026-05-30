@@ -66,6 +66,9 @@ void AppliFrame_Init(AppliFrame_t *frame, int8_t slot) {
 }
 
 void AppliFrame_Reset(AppliFrame_t *frame) {
+#if SYNCHRONIZE_DOING ==1
+    printf("Reset payload AppliFrame @ addr %p" NL, frame);
+#endif
     payload_reset(&frame->payload);
 }
 void AppliFrame_SetDirty(AppliFrame_t *frame) {
@@ -140,7 +143,7 @@ uint32_t AppliFrame_CopyPl2F(const payload_t *payload, AppliFrame_t *frame) {
 
 void AppliFrame_Print(const AppliFrame_t *msg, char *rxtx, bool printPayload, bool doLong) {
     if (rxtx != NULL) {
-        printf("%s "SLOT_PRINT_FMT NL, rxtx, msystem.cycle.cycle, ACT_SUB_SLOT(&msystem.cycle) ,ACT_SLOT(&msystem.cycle));
+        printf("%s: %s "NL, rxtx, cycle_string(&msystem.cycle));
     }
     int16_t pktLen = AppliFrame_StateSize(msg);
     if (doLong){
@@ -151,13 +154,11 @@ void AppliFrame_Print(const AppliFrame_t *msg, char *rxtx, bool printPayload, bo
         printf("Cmd        = %s (%d)" NL, idxa2str(&cmda2str ,msg->Cmd), msg->Cmd);
         printf("DataLen    = %d" NL, msg->DataLen);
     }
-    if (!doLong){
-        printf("AF slot    = %d" NL, msg->slot);
-    }
+    printf("AF slot    = %d" NL, msg->slot);
     if (doLong){
         printf("conf       = 0x%1x, 0x%1x " NL, msg->conf[0], msg->conf[1]);
         uint16_t crc = common_crc16((uint8_t *)msg, pktLen);
-        printf("Crc = 0x%04x" NL, crc);
+        printf("Crc        = 0x%04x" NL, crc);
     }
     if (printPayload) {
         if (msg->DataLen == 0){

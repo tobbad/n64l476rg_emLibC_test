@@ -114,10 +114,8 @@ void payload_print(const payload_t *payload, const char *title, bool doLong) {
     if (doLong) {
         printf("payload_t  = %u (size)" NL, sizeof(payload_t));
     }
-    if (!doLong){
-        printf("PL slot    = %d" NL, payload->slot);
-        printf("hubCnt     = %d" NL, payload->hubCnt);
- }
+    printf("PL slot    = %d" NL, payload->slot);
+    printf("hubCnt     = %d" NL, payload->hubCnt);
     if (doLong) {
         printf("init       = %d" NL, payload->init);
         printf("conf       = %d" NL, payload->conf);
