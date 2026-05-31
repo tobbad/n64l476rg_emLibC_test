@@ -4,3 +4,6 @@
 [submodule "lib/stm32-ssd1306"]
 	path = lib/stm32-ssd1306
 	url = https://github.com/afiskon/stm32-ssd1306.git
+[submodule "lib/tinyUSB"]
+	path = lib/tinyUSB
+	url = https://github.com/hathach/tinyusb.git

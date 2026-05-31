@@ -70,6 +70,8 @@ static void MX_USART2_UART_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_RNG_Init(void);
 static void MX_TIM1_Init(void);
+static void I2C1_BusRecovery(void);
+
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -125,7 +127,7 @@ int main(void) {
     SystemClock_Config();
 
     /* USER CODE BEGIN SysInit */
-
+    I2C1_BusRecovery();
     /* USER CODE END SysInit */
 
     /* Initialize all configured peripherals */
@@ -161,6 +163,11 @@ int main(void) {
 #endif
     }
     time_print(stxhdl, "Serial after startup", true, true);
+    for (uint8_t a = 1; a < 128; a++) {
+        if (HAL_I2C_IsDeviceReady(&hi2c1, a << 1, 2, 10) == HAL_OK) {
+            printf("I2C device @ 0x%02X" NL, a);   // SSD1306: erwartet 0x3C (oder 0x3D)
+        }
+    }
     display_init(&system_state, BLINKING_CNT, &Font_6x8);
     display_write_txt2line(HEADING, "Do start", Centered);
     display_setAttr(0, BLINKING);
@@ -232,6 +239,36 @@ int main(void) {
         /* USER CODE END 3 */
     }
 }
+
+static void I2C1_BusRecovery(void)
+{
+     GPIO_InitTypeDef g = {0};
+     __HAL_RCC_GPIOB_CLK_ENABLE();
+
+     // SCL=PB8, SDA=PB9 als Open-Drain-GPIO mit Pull-Up
+     g.Mode = GPIO_MODE_OUTPUT_OD;
+     g.Pull = GPIO_PULLUP;
+     g.Speed = GPIO_SPEED_FREQ_LOW;
+     g.Pin = GPIO_PIN_8 | GPIO_PIN_9;
+     HAL_GPIO_Init(GPIOB, &g);
+
+     HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);  // SDA frei
+     for (int i = 0; i < 9; i++) {                        // 9 Clocks auf SCL
+         HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_RESET);
+         HAL_Delay(1);
+         HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_SET);
+         HAL_Delay(1);
+     }
+     // STOP: SDA Low->High waehrend SCL High
+     HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_RESET);
+     HAL_Delay(1);
+     HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_SET);
+     HAL_Delay(1);
+     HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
+     HAL_Delay(1);
+}
+
+
 /**
  * @brief System Clock Configuration
  * @retval None
