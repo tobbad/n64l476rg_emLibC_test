@@ -22,24 +22,22 @@
  * THE SOFTWARE.
  *
  */
-#include "tusb.h"
-#include "stm32l4xx_hal.h"
-#include "main.h"
 #include "cycle.h"
-void tinyUSB_app_task(void){
-
+#include "main.h"
+#include "stm32l4xx_hal.h"
+#include "tusb.h"
+void tinyUSB_app_task(void) {
 }
 
 void tud_cdc_rx_cb(uint8_t itf) {
     uint32_t count = tud_cdc_n_available(itf);
-    if (count>0) {
+    if (count > 0) {
         tud_cdc_n_read(itf, urx_buffer.mem, RX_BUFFER_SIZE);
         buffer_set(&urx_buffer, urx_buffer.mem, count);
         time_start(urxhdl, count, urx_buffer.mem, &rb_system.cycle);
     }
 }
 
-void tud_cdc_tx_complete_cb(uint8_t itf){
+void tud_cdc_tx_complete_cb(uint8_t itf) {
     time_stop(utxhdl, NULL);
-
 }

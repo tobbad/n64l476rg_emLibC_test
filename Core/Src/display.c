@@ -10,9 +10,8 @@
 #include "ssd1306_fonts.h"
 #include "state.h"
 
-
-const allign_e def_alli = Centered;
-char *state_to_str[LOC_CNT] = {
+const allign_e def_alli              = Centered;
+char          *state_to_str[LOC_CNT] = {
     (char *)&"OF",
     (char *)&"BL",
     (char *)&"ON",
