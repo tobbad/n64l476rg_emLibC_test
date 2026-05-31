@@ -9,7 +9,6 @@
 #define INC_DISPLAY_H_
 #include "common.h"
 #include "state.h"
-#include "display.h"
 #include "ssd1306_fonts.h"
 #define DOT_PER_LINE 16
 #define CHAR_PER_LINE (SSD1306_WIDTH/7 + 1)
@@ -25,8 +24,8 @@ typedef enum {
 } line_e;
 
 #define DOT_PER_LINE 16
-#define LINE_CNT SSD1306_HEIGHT/(10)-1
-#define CHAR_PER_LINE  (SSD1306_WIDTH/7 + 1)
+#define DISPLAY_LINE_CNT SSD1306_HEIGHT/(10)-1
+#define CHAR_PER_LINE    (SSD1306_WIDTH/7 + 1)
 
 //extern char* state2str[];
 #define ENTRY_SIZE 3

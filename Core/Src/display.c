@@ -88,9 +88,7 @@ void display_init(state_t *state, uint16_t cycle_size, const SSD1306_Font_t *fon
 
 void display_update() {
     static uint8_t idx = 0;
-    // static uint8_t lock=1;
-    if (!my_display.init)
-        return;
+    if (!my_display.init) return;
     if (!display_is_dirty())
         return;
     bool doShow = true; // idx < my_display.cycle_size << 1;
@@ -103,7 +101,7 @@ void display_update() {
 }
 
 void display_clear_line(line_e lineNr) {
-    if (my_display.init) return;
+    if (!my_display.init) return;
     uint8_t y_start = lineNr * DOT_PER_LINE;
     uint8_t y_stop  = (lineNr + 1) * DOT_PER_LINE - 1;
     ssd1306_FillRectangle(0, y_start, SSD1306_WIDTH - 1, y_stop, Black);
@@ -125,12 +123,14 @@ void display_write_txt2line(line_e lineNr, const char *text, allign_e loc) {
 }
 
 void display_setAttr(line_e lineNr, key_state_e attr) {
+    if (!my_display.init) return;
     my_display.line[lineNr].attr  = attr;
     my_display.line[lineNr].dirty = true;
     my_display.dirty              = true;
 }
 
 bool display_is_dirty() {
+    if (!my_display.init) return false;
     my_display.dirty = false;
     for (uint8_t lineNr = 0; lineNr < LINE_CNT; lineNr++) {
         my_display.dirty |= my_display.line[lineNr].dirty;
@@ -138,6 +138,7 @@ bool display_is_dirty() {
     return my_display.dirty = my_display.dirty || !state_is_same(&my_display.lstate, my_display.state);
 }
 static void display_states_update(bool doShowLine) {
+    if (!my_display.init) return;
     for (uint8_t i = 0; i < my_display.state->cnt; i++) {
         uint8_t idx = i + my_display.state->first;
         if (my_display.state->state[idx] == OFF) {
@@ -159,16 +160,15 @@ static void display_states_update(bool doShowLine) {
 }
 
 static void display_lines(bool doShowLine) {
-    if (!my_display.init)
-        return;
-    for (uint8_t lineNr = 0; lineNr < LINE_CNT - 1; lineNr++) {
+    if (!my_display.init) return;
+    for (uint8_t lineNr = 0; lineNr < LINE_CNT; lineNr++) {
         if (!my_display.line[lineNr].dirty)
             continue;
         uint8_t strLen  = strlen(my_display.line[lineNr].line);
         uint8_t y_start = lineNr * DOT_PER_LINE + (my_display.font->height >> 1);
         uint8_t x_start = 0;
         if (my_display.line[lineNr].align == Centered) {
-            x_start = (SSD1306_WIDTH - strLen * my_display.font->width) << 1;
+            x_start = (SSD1306_WIDTH - strLen * my_display.font->width) >> 1;
         }
         if (my_display.line[lineNr].align == Right) {
             x_start = SSD1306_WIDTH - 1 - (strLen * my_display.font->width);
