@@ -28,17 +28,6 @@ def extract_tick_msg(line):
     return None, None
 
 
-def parse_anchors(lines):
-    """Return list of (epoch_ms, device_tick) from [RX] anchor lines."""
-    anchors = []
-    for line in lines:
-        m = _ANCHOR_RE.search(line)
-        if m:
-            dt = datetime.strptime(m.group(1), '%d.%m.%Y %H:%M:%S.%f')
-            anchors.append((int(dt.timestamp() * 1000), int(m.group(2))))
-    return anchors
-
-
 def tick_to_epoch_ms(tick, anchors):
     """Convert device tick to epoch ms using the closest prior anchor."""
     best = None
@@ -51,44 +40,103 @@ def tick_to_epoch_ms(tick, anchors):
     return best[0] + (tick - best[1])
 
 
-def parse_device_slot(lines):
-    for line in lines:
-        _, msg = extract_tick_msg(line)
-        if msg and re.match(r'my_slot\s*=\s*(\d+)', msg):
-            return int(re.match(r'my_slot\s*=\s*(\d+)', msg).group(1))
-    return None
-
-
-def parse_events(source_file, lines):
+class StreamParser:
     """
-    Extract all events from a log file:
-      - type='TX'/'RX'   : TXFRAME: / RXFRAME: data frame blocks
-      - type='ACK_TX'    : rb_system.txFrame->Cmd = ACK_OK
-      - type='ACK_RX'    : SM_STATE_ACK_RECEIVED from slot X
-      - type='KA_TX'     : Send SM_STATE_KEEP_ALIVE
-      - type='KA_RX'     : SM_STATE_KEEP_ALIVE
-      - type='DATA_RX'   : SM_STATE_DATA_RECEIVED N Bytes
-    """
-    device_slot = parse_device_slot(lines)
-    anchors = parse_anchors(lines)
-    events = []
-    i = 0
+    Single, stateful parser for RadioBell log lines — used both for whole
+    files (via parse_events) and for live serial streams (SerialWorker).
 
-    while i < len(lines):
-        tick, msg = extract_tick_msg(lines[i])
+    Call feed(line) for every incoming line; it returns a list of complete
+    events (usually 0 or 1).  Multi-line TXFRAME/RXFRAME blocks are buffered
+    internally and emitted only when complete, so a single source of truth
+    handles both batch and streaming use.  Call flush() once at the end of a
+    file to release a still-pending frame.
+
+    Event types produced:
+      - 'TX'/'RX'   : TXFRAME: / RXFRAME: data frame blocks
+      - 'ACK_TX'    : rb_system.txFrame->Cmd = ACK_OK
+      - 'ACK_RX'    : SM_STATE_ACK_RECEIVED from slot X
+      - 'KA_TX'     : Send SM_STATE_KEEP_ALIVE
+      - 'KA_RX'     : SM_STATE_KEEP_ALIVE
+      - 'DATA_RX'   : SM_STATE_DATA_RECEIVED N Bytes
+      - '_RESET_'   : device restarted (only when detect_reset=True)
+
+    Anchors (device tick → PC epoch ms) are learned from the embedded
+    "[RX] - <tick>:" timestamp lines present in files.  For a live serial
+    stream those lines do not exist, so SerialWorker seeds self.anchors
+    with a single (now, first_tick) pair instead.
+    """
+
+    def __init__(self, source_name, device_slot=None, detect_reset=True):
+        self.source_name  = source_name
+        self.device_slot  = device_slot   # pre-set from config; overwritten by "my_slot = X"
+        self.detect_reset = detect_reset
+        self.anchors      = []            # (epoch_ms, device_tick) anchor pairs
+        self._frame       = None          # pending multi-line frame being built
+        self._labels      = None          # label row from the pending frame
+        self._slot_seen   = False         # True after first my_slot line; second = reset
+
+    # ── internal helpers ──────────────────────────────────────────────────────
+
+    def _epoch_ms(self, tick):
+        return tick_to_epoch_ms(tick, self.anchors) if self.anchors else None
+
+    def _base_event(self, tick, event_type):
+        return {
+            'source_file': self.source_name,
+            'device_slot': self.device_slot if self.device_slot is not None else -1,
+            'type':        event_type,
+            'tick':        tick,
+            '_epoch_ms':   self._epoch_ms(tick),
+        }
+
+    def _flush_frame(self):
+        """Return and clear the pending frame."""
+        frame, self._frame, self._labels = self._frame, None, None
+        return frame
+
+    def flush(self):
+        """Release a still-pending frame at end of input. Returns 0 or 1 events."""
+        return [self._flush_frame()] if self._frame else []
+
+    # ── public interface ──────────────────────────────────────────────────────
+
+    def feed(self, line):
+        """Feed one log line. Returns a list of complete events (usually 0 or 1)."""
+        # ── Learn an anchor from the embedded PC timestamp (files only) ────
+        a = _ANCHOR_RE.search(line)
+        if a:
+            dt = datetime.strptime(a.group(1), '%d.%m.%Y %H:%M:%S.%f')
+            self.anchors.append((int(dt.timestamp() * 1000), int(a.group(2))))
+
+        tick, msg = extract_tick_msg(line)
         if msg is None:
-            i += 1
-            continue
+            return []
 
-        # ── DATA frames ──────────────────────────────────────────────────────
+        emitted = []
+
+        # ── Learn the device slot from the EEPROM header (authoritative) ───
+        m = re.match(r'my_slot\s*=\s*(\d+)', msg)
+        if m:
+            new_slot = int(m.group(1))
+            if self.detect_reset and self._slot_seen:
+                # Second occurrence → device has been reset; signal the caller
+                self.anchors.clear()   # SerialWorker will set a fresh anchor
+                emitted.append({
+                    'type':        '_RESET_',
+                    'source_file': self.source_name,
+                    'device_slot': new_slot,
+                    '_epoch_ms':   None,
+                })
+            self.device_slot = new_slot
+            self._slot_seen  = True
+
+        # ── New data frame starting ───────────────────────────────────────
         m = re.match(r'(TXFRAME|RXFRAME):?\s*\(c:\s*(\d+),\s*(\d+),\s*(\d+)\)', msg)
         if m:
-            frame = {
-                'source_file': source_file,
-                'device_slot': device_slot,
-                'type': 'TX' if m.group(1) == 'TXFRAME' else 'RX',
-                'tick': tick,
-                '_epoch_ms': tick_to_epoch_ms(tick, anchors) if anchors else None,
+            if self._frame:                       # flush any unfinished frame
+                emitted.append(self._flush_frame())
+            frame = self._base_event(tick, 'TX' if m.group(1) == 'TXFRAME' else 'RX')
+            frame.update({
                 'cycle':   int(m.group(2)),
                 'af_slot': int(m.group(3)),   # sender slot (af_slot = slot in c:)
                 'subslot': int(m.group(4)),   # subslot within slot
@@ -96,132 +144,119 @@ def parse_events(source_file, lines):
                 'hubCnt':  None,
                 'state':   {},
                 'dirty':   False,
-            }
-            labels = None
-            j = i + 1
-            max_j = min(i + 15, len(lines))
-            while j < max_j:
-                _, msg2 = extract_tick_msg(lines[j])
-                if msg2 is None:
-                    j += 1
-                    continue
-                m_af = re.match(r'AF\s+slot\s*=\s*(\d+)', msg2)
-                if m_af:
-                    frame['af_slot'] = int(m_af.group(1)); j += 1; continue
-                m_pl = re.match(r'PL\s+slot\s*=\s*(\d+)', msg2)
-                if m_pl:
-                    frame['pl_slot'] = int(m_pl.group(1)); j += 1; continue
-                m_hub = re.match(r'hubCnt\s*=\s*(\d+)', msg2)
-                if m_hub:
-                    frame['hubCnt'] = int(m_hub.group(1)); j += 1; continue
-                if msg2 == 'state':
-                    j += 1; continue
-                m_label = re.match(r'label\s*=\s*(.*)', msg2)
-                if m_label:
-                    labels = m_label.group(1).split(); j += 1; continue
-                m_state = re.match(r'State\s*=\s*(.*)', msg2)
-                if m_state and labels is not None:
-                    values = m_state.group(1).split()
-                    frame['state'] = {
-                        labels[k].lower(): values[k]
-                        for k in range(min(len(labels), len(values)))
-                    }
-                    j += 1; continue
-                if msg2 == 'Dirty':
-                    frame['dirty'] = True; j += 1; break
-                break
-            events.append(frame)
-            i = j
-            continue
+            })
+            self._frame = frame
+            return emitted
+
+        # ── Continue building the pending frame ───────────────────────────
+        if self._frame is not None:
+            pf = self._frame
+            if (m := re.match(r'AF\s+slot\s*=\s*(\d+)', msg)):
+                pf['af_slot'] = int(m.group(1)); return emitted
+            if (m := re.match(r'PL\s+slot\s*=\s*(\d+)', msg)):
+                pf['pl_slot'] = int(m.group(1)); return emitted
+            if (m := re.match(r'hubCnt\s*=\s*(\d+)', msg)):
+                pf['hubCnt'] = int(m.group(1)); return emitted
+            if msg == 'state':
+                return emitted
+            if (m := re.match(r'label\s*=\s*(.*)', msg)):
+                self._labels = m.group(1).split(); return emitted
+            if (m := re.match(r'State\s*=\s*(.*)', msg)) and self._labels is not None:
+                values = m.group(1).split()
+                pf['state'] = {
+                    self._labels[k].lower(): values[k]
+                    for k in range(min(len(self._labels), len(values)))
+                }
+                return emitted
+            if msg == 'Dirty':
+                pf['dirty'] = True
+                emitted.append(self._flush_frame())
+                return emitted
+            # Any unrelated line means the frame block is done
+            emitted.append(self._flush_frame())
 
         # ── ACK sent: rb_system.txFrame->Cmd = ACK_OK (c: cycle, slot, subslot) ─
-        m_ok = re.match(
+        m = re.match(
             r'rb_system\.txFrame->Cmd\s*=\s*ACK_OK\s*\(c:\s*(\d+),\s*(\d+),\s*(\d+)\)', msg)
-        if m_ok:
-            events.append({
-                'source_file': source_file,
-                'device_slot': device_slot,
-                'type':    'ACK_TX',
-                'tick':    tick,
-                '_epoch_ms': tick_to_epoch_ms(tick, anchors) if anchors else None,
-                'cycle':   int(m_ok.group(1)),
-                'af_slot': int(m_ok.group(2)),   # sender slot (= this device's slot)
-                'subslot': int(m_ok.group(3)),
+        if m:
+            evt = self._base_event(tick, 'ACK_TX')
+            evt.update({
+                'cycle':   int(m.group(1)),
+                'af_slot': int(m.group(2)),   # sender slot (= this device's slot)
+                'subslot': int(m.group(3)),
             })
-            i += 1
-            continue
+            emitted.append(evt)
+            return emitted
 
         # ── ACK received: SM_STATE_ACK_RECEIVED from slot X (c: cycle, slot, subslot) ─
-        m_ack = re.match(
+        m = re.match(
             r'SM_STATE_ACK_RECEIVED\s+from\s+slot\s+(\d+)\s*\(c:\s*(\d+),\s*(\d+),\s*(\d+)\)', msg)
-        if m_ack:
-            events.append({
-                'source_file': source_file,
-                'device_slot': device_slot,
-                'type':      'ACK_RX',
-                'tick':      tick,
-                '_epoch_ms': tick_to_epoch_ms(tick, anchors) if anchors else None,
-                'from_slot': int(m_ack.group(1)),
-                'af_slot':   int(m_ack.group(1)),   # ACK sender = from_slot
-                'cycle':     int(m_ack.group(2)),
-                'subslot':   int(m_ack.group(4)),
+        if m:
+            evt = self._base_event(tick, 'ACK_RX')
+            evt.update({
+                'from_slot': int(m.group(1)),
+                'af_slot':   int(m.group(1)),   # ACK sender = from_slot
+                'cycle':     int(m.group(2)),
+                'subslot':   int(m.group(4)),
             })
-            i += 1
-            continue
+            emitted.append(evt)
+            return emitted
 
         # ── KEEP_ALIVE sent: Send SM_STATE_KEEP_ALIVE (c: cycle, slot, subslot) ─
-        m_ka_tx = re.match(
+        m = re.match(
             r'Send\s+SM_STATE_KEEP_ALIVE\s*\(c:\s*(\d+),\s*(\d+),\s*(\d+)', msg)
-        if m_ka_tx:
-            events.append({
-                'source_file': source_file,
-                'device_slot': device_slot,
-                'type':      'KA_TX',
-                'tick':      tick,
-                '_epoch_ms': tick_to_epoch_ms(tick, anchors) if anchors else None,
-                'cycle':     int(m_ka_tx.group(1)),
-                'af_slot':   int(m_ka_tx.group(2)),
-                'subslot':   int(m_ka_tx.group(3)),
+        if m:
+            evt = self._base_event(tick, 'KA_TX')
+            evt.update({
+                'cycle':   int(m.group(1)),
+                'af_slot': int(m.group(2)),
+                'subslot': int(m.group(3)),
             })
-            i += 1
-            continue
+            emitted.append(evt)
+            return emitted
 
         # ── KEEP_ALIVE received: SM_STATE_KEEP_ALIVE (c: cycle, slot, subslot) ─
-        m_ka_rx = re.match(
+        m = re.match(
             r'SM_STATE_KEEP_ALIVE\s*\(c:\s*(\d+),\s*(\d+),\s*(\d+)', msg)
-        if m_ka_rx:
-            events.append({
-                'source_file': source_file,
-                'device_slot': device_slot,
-                'type':      'KA_RX',
-                'tick':      tick,
-                '_epoch_ms': tick_to_epoch_ms(tick, anchors) if anchors else None,
-                'cycle':     int(m_ka_rx.group(1)),
-                'af_slot':   int(m_ka_rx.group(2)),
-                'subslot':   int(m_ka_rx.group(3)),
+        if m:
+            evt = self._base_event(tick, 'KA_RX')
+            evt.update({
+                'cycle':   int(m.group(1)),
+                'af_slot': int(m.group(2)),
+                'subslot': int(m.group(3)),
             })
-            i += 1
-            continue
+            emitted.append(evt)
+            return emitted
 
         # ── Radio bytes received: SM_STATE_DATA_RECEIVED N Bytes (from slot = X) ─
-        m_dr = re.match(
+        m = re.match(
             r'SM_STATE_DATA_RECEIVED\s+(\d+)\s+Bytes\s+\(from\s+slot\s*=\s*(\d+)\)', msg)
-        if m_dr:
-            events.append({
-                'source_file': source_file,
-                'device_slot': device_slot,
-                'type':      'DATA_RX',
-                'tick':      tick,
-                '_epoch_ms': tick_to_epoch_ms(tick, anchors) if anchors else None,
-                'af_slot':   int(m_dr.group(2)),
-                'info':      f"{m_dr.group(1)} B from slot {m_dr.group(2)}",
+        if m:
+            evt = self._base_event(tick, 'DATA_RX')
+            evt.update({
+                'af_slot': int(m.group(2)),
+                'info':    f"{m.group(1)} B from slot {m.group(2)}",
             })
-            i += 1
-            continue
+            emitted.append(evt)
+            return emitted
 
-        i += 1
+        return emitted
 
-    return events
+
+def parse_events(source_file, lines):
+    """
+    Parse a complete list of log lines into events, using StreamParser.
+
+    This is the batch entry point (file input); the live serial path uses the
+    same StreamParser one line at a time.  reset detection is disabled here —
+    a re-flashed device mid-file just continues with the new slot.
+    """
+    parser = StreamParser(source_file, detect_reset=False)
+    events = []
+    for line in lines:
+        events.extend(parser.feed(line))
+    events.extend(parser.flush())
+    return [e for e in events if e.get('type') != '_RESET_']
 
 
 def assign_t_ms(all_frames):
@@ -325,8 +360,14 @@ def print_timeline(all_events):
             )
         elif typ == 'ACK_TX':
             info = '>> ACK sent'
-        else:  # ACK_RX
+        elif typ == 'ACK_RX':
             info = f"<< ACK from slot {e['from_slot']}"
+        elif typ == 'KA_TX':
+            info = '>> KA sent'
+        elif typ == 'KA_RX':
+            info = '<< KA received'
+        else:  # DATA_RX
+            info = e.get('info', 'radio bytes received')
 
         print(f"{t}  {dev}  {typ:<6}  {info}")
     print()
@@ -363,12 +404,16 @@ def main():
     slots: dict = {}
     for f in all_frames:
         k = f['device_slot']
-        slots.setdefault(k, {'TX': 0, 'RX': 0, 'ACK_TX': 0, 'ACK_RX': 0})
-        slots[k][f['type']] += 1
+        counts = slots.setdefault(k, {})
+        counts[f['type']] = counts.get(f['type'], 0) + 1
     print("\nPer device:")
     for s in sorted(slots):
         d = slots[s]
-        print(f"  slot {s}: {d['TX']} TX  {d['RX']} RX  {d['ACK_TX']} ACK>  {d['ACK_RX']} ACK<")
+        ka = d.get('KA_TX', 0) + d.get('KA_RX', 0)
+        print(f"  slot {s}: {d.get('TX', 0)} TX  {d.get('RX', 0)} RX  "
+              f"{d.get('ACK_TX', 0)} ACK>  {d.get('ACK_RX', 0)} ACK<"
+              + (f"  {ka} KA" if ka else "")
+              + (f"  {d['DATA_RX']} DATA" if d.get('DATA_RX') else ""))
 
 
 if __name__ == '__main__':

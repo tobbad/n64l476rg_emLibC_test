@@ -10,8 +10,8 @@ File structure
 --------------
   Section 1 – CONFIGURATION   : colours, column definitions, help HTML.
                Edit this section to add event types, columns, or change colours.
-  Section 2 – PARSING BRIDGE  : imports from parse_logs.py.
-  Section 3 – SERIAL I/O      : SerialWorker (QThread) + _StreamParser.
+  Section 2 – PARSING BRIDGE  : imports from parse_logs.py (incl. StreamParser).
+  Section 3 – SERIAL I/O      : SerialWorker (QThread); parsing via StreamParser.
   Section 4 – DIALOGS         : SerialDialog, HelpDialog.
   Section 5 – MAIN WINDOW     : MainWindow class.
   Section 6 – ENTRY POINT     : main(), CLI argument handling.
@@ -271,6 +271,7 @@ top of <code>viewer.py</code>:</p>
 
 sys.path.insert(0, str(Path(__file__).parent))
 from parse_logs import (
+    StreamParser,      # stateful line-by-line parser (shared by files & serial)
     parse_events,      # parse a complete list of log lines → list of events
     assign_t_ms,       # compute unified t_ms field for all events in-place
     deduplicate,       # remove (device_slot, type, tick) duplicates
@@ -334,187 +335,9 @@ def event_to_row(event: dict) -> list[str]:
 # ══════════════════════════════════════════════════════════════════════════════
 # Section 3 – SERIAL I/O
 # ══════════════════════════════════════════════════════════════════════════════
-
-class _StreamParser:
-    """
-    Parses RadioBell log lines one at a time (for a live serial stream).
-
-    Call feed(line) for each incoming line.  It returns a list of complete
-    events.  Multi-line blocks (TXFRAME/RXFRAME) are accumulated internally
-    and emitted only when they are complete.
-
-    This mirrors the logic in parse_logs.parse_events() but operates on a
-    stream rather than a pre-loaded file.
-    """
-
-    def __init__(self, source_name: str, device_slot=None):
-        self.source_name = source_name
-        self.device_slot = device_slot  # pre-set from config; overwritten by "my_slot = X"
-        self.anchors     = []           # (epoch_ms, device_tick) anchor pairs
-        self._frame      = None         # pending multi-line frame being built
-        self._labels     = None         # label row from the pending frame
-        self._slot_seen  = False        # True after first my_slot line; second = reset
-
-    # ── internal helpers ──────────────────────────────────────────────────────
-
-    def _epoch_ms(self, tick: int):
-        return tick_to_epoch_ms(tick, self.anchors) if self.anchors else None
-
-    def _base_event(self, tick: int, event_type: str) -> dict:
-        return {
-            "source_file":  self.source_name,
-            "device_slot":  self.device_slot if self.device_slot is not None else -1,
-            "type":         event_type,
-            "tick":         tick,
-            "_epoch_ms":    self._epoch_ms(tick),
-        }
-
-    def _flush_frame(self):
-        """Return and clear the pending frame."""
-        frame, self._frame, self._labels = self._frame, None, None
-        return frame
-
-    # ── public interface ──────────────────────────────────────────────────────
-
-    def feed(self, line: str) -> list[dict]:
-        """
-        Feed one log line.  Returns a list of complete events (usually 0 or 1).
-        """
-        tick, msg = extract_tick_msg(line)
-        if msg is None:
-            return []
-
-        emitted = []
-
-        # ── Learn the device slot from the EEPROM header (always authoritative) ─
-        m = re.match(r"my_slot\s*=\s*(\d+)", msg)
-        if m:
-            new_slot = int(m.group(1))
-            if self._slot_seen:
-                # Second occurrence → device has been reset; signal the main thread
-                self.anchors.clear()   # SerialWorker will set a fresh anchor
-                emitted.append({
-                    "type":        "_RESET_",
-                    "source_file": self.source_name,
-                    "device_slot": new_slot,
-                    "_epoch_ms":   None,
-                })
-            self.device_slot = new_slot
-            self._slot_seen  = True
-
-        # ── New data frame starting ───────────────────────────────────────
-        m = re.match(r"(TXFRAME|RXFRAME):?\s*\(c:\s*(\d+),\s*(\d+),\s*(\d+)\)", msg)
-        if m:
-            if self._frame:                       # flush any unfinished frame
-                emitted.append(self._flush_frame())
-            frame = self._base_event(tick, "TX" if "TX" in m.group(1) else "RX")
-            frame.update({
-                "cycle":   int(m.group(2)),
-                "af_slot": int(m.group(3)),   # sender slot (= af_slot)
-                "subslot": int(m.group(4)),   # subslot within the slot
-                "pl_slot": None,
-                "hubCnt":  None,
-                "state":   {},
-                "dirty":   False,
-            })
-            self._frame = frame
-            return emitted
-
-        # ── Continue building the pending frame ───────────────────────────
-        if self._frame is not None:
-            pf = self._frame
-
-            if (m := re.match(r"AF\s+slot\s*=\s*(\d+)", msg)):
-                pf["af_slot"] = int(m.group(1));  return emitted
-            if (m := re.match(r"PL\s+slot\s*=\s*(\d+)", msg)):
-                pf["pl_slot"] = int(m.group(1));  return emitted
-            if (m := re.match(r"hubCnt\s*=\s*(\d+)", msg)):
-                pf["hubCnt"]  = int(m.group(1));  return emitted
-            if msg == "state":
-                return emitted
-            if (m := re.match(r"label\s*=\s*(.*)", msg)):
-                self._labels = m.group(1).split(); return emitted
-            if (m := re.match(r"State\s*=\s*(.*)", msg)) and self._labels:
-                vals = m.group(1).split()
-                pf["state"] = {
-                    self._labels[k].lower(): vals[k]
-                    for k in range(min(len(self._labels), len(vals)))
-                }
-                return emitted
-            if msg == "Dirty":
-                pf["dirty"] = True
-                emitted.append(self._flush_frame())
-                return emitted
-            # Any unrelated line means the frame block is done
-            emitted.append(self._flush_frame())
-
-        # ── ACK sent: rb_system.txFrame->Cmd = ACK_OK (c: cycle, slot, subslot) ─
-        m = re.match(
-            r"rb_system\.txFrame->Cmd\s*=\s*ACK_OK\s*\(c:\s*(\d+),\s*(\d+),\s*(\d+)\)", msg)
-        if m:
-            evt = self._base_event(tick, "ACK_TX")
-            evt.update({
-                "cycle":   int(m.group(1)),
-                "af_slot": int(m.group(2)),
-                "subslot": int(m.group(3)),
-            })
-            emitted.append(evt)
-            return emitted
-
-        # ── ACK received: SM_STATE_ACK_RECEIVED from slot X (c: cycle, slot, subslot) ─
-        m = re.match(
-            r"SM_STATE_ACK_RECEIVED\s+from\s+slot\s+(\d+)\s*\(c:\s*(\d+),\s*(\d+),\s*(\d+)\)", msg)
-        if m:
-            evt = self._base_event(tick, "ACK_RX")
-            evt.update({
-                "from_slot": int(m.group(1)),
-                "af_slot":   int(m.group(1)),
-                "cycle":     int(m.group(2)),
-                "subslot":   int(m.group(4)),
-            })
-            emitted.append(evt)
-            return emitted
-
-        # ── KEEP_ALIVE sent: Send SM_STATE_KEEP_ALIVE (c: cycle, slot, subslot) ─
-        m = re.match(
-            r"Send\s+SM_STATE_KEEP_ALIVE\s*\(c:\s*(\d+),\s*(\d+),\s*(\d+)", msg)
-        if m:
-            evt = self._base_event(tick, "KA_TX")
-            evt.update({
-                "cycle":   int(m.group(1)),
-                "af_slot": int(m.group(2)),
-                "subslot": int(m.group(3)),
-            })
-            emitted.append(evt)
-            return emitted
-
-        # ── KEEP_ALIVE received: SM_STATE_KEEP_ALIVE (c: cycle, slot, subslot) ─
-        m = re.match(
-            r"SM_STATE_KEEP_ALIVE\s*\(c:\s*(\d+),\s*(\d+),\s*(\d+)", msg)
-        if m:
-            evt = self._base_event(tick, "KA_RX")
-            evt.update({
-                "cycle":   int(m.group(1)),
-                "af_slot": int(m.group(2)),
-                "subslot": int(m.group(3)),
-            })
-            emitted.append(evt)
-            return emitted
-
-        # ── Radio bytes received: SM_STATE_DATA_RECEIVED N Bytes (from slot = X) ─
-        m = re.match(
-            r"SM_STATE_DATA_RECEIVED\s+(\d+)\s+Bytes\s+\(from\s+slot\s*=\s*(\d+)\)", msg)
-        if m:
-            evt = self._base_event(tick, "DATA_RX")
-            evt.update({
-                "af_slot": int(m.group(2)),
-                "info":    f"{m.group(1)} B from slot {m.group(2)}",
-            })
-            emitted.append(evt)
-            return emitted
-
-        return emitted
-
+# The line-by-line parsing logic lives in parse_logs.StreamParser (imported in
+# Section 2) and is shared with the file path.  SerialWorker just feeds it the
+# raw serial lines and seeds the first tick→time anchor.
 
 class SerialWorker(QThread):
     """
@@ -560,7 +383,7 @@ class SerialWorker(QThread):
             self.status_msg.emit(msg)
             return
 
-        parser      = _StreamParser(self._port, self._device_slot)
+        parser      = StreamParser(self._port, self._device_slot)
         start_epoch = int(datetime.now().timestamp() * 1000)
         anchor_set  = False
 
