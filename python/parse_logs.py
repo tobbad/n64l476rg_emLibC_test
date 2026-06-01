@@ -1,13 +1,28 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Parse device log files from python/log/*.txt and generate
-python/simulation/simulation_data.py containing all TXFRAME/RXFRAME events
-as a list of dicts with AppliFrame/Payload/State fields.
+RadioBell log parsing — the single source of truth for turning device output
+into structured events, shared by both the file and the live-serial path.
 
-A unified tick t_ms (ms since first event across all devices) is derived from
-the [TX]...[RX] anchor lines embedded in each log file.  Device ticks run at
-~1 ms/tick.  Duplicate frames (same device, same tick) are removed.
+The core is the StreamParser class: a stateful, line-by-line parser that turns
+RadioBell log lines into event dicts (TX/RX/ACK/KA/DATA, plus AppliFrame/
+Payload/State fields).  It is used in two ways:
+
+  * Files  – parse_events() feeds a whole captured python/log/*.txt through a
+             StreamParser at once (batch).  Anchors come from the embedded
+             "[RX] - <tick>:" PC timestamps in the file.
+  * Serial – viewer.py's SerialWorker feeds the same StreamParser one line at a
+             time as they arrive from the port, seeding the first tick→time
+             anchor itself (live serial output has no embedded timestamps).
+
+Both paths produce identical event dicts; only anchor seeding and device-reset
+detection differ, controlled by StreamParser's constructor arguments.
+
+Run as a script (`python parse_logs.py`), this module parses all files in
+python/log/*.txt and generates python/simulation/simulation_data.py.  A unified
+tick t_ms (ms since the first event across all devices) is derived from the
+anchors; device ticks run at ~1 ms/tick.  Duplicate events (same device, type
+and tick) are removed.
 """
 import re
 from datetime import datetime
@@ -263,6 +278,14 @@ def assign_t_ms(all_frames):
     """
     Set t_ms on every frame: ms since the earliest event across all devices.
     Same zero-padded style as device ticks.
+
+    This is what puts file and serial events onto ONE shared timeline: every
+    event already carries an absolute PC-epoch ms (_epoch_ms, derived from its
+    source's anchors), so subtracting the global minimum yields a common t_ms
+    regardless of source.  Mixing sources captured far apart in wall-clock time
+    (e.g. an old log file plus a live serial session) therefore produces a
+    correspondingly large t_ms gap between them.  Callers re-run this whenever a
+    source is added so the zero point stays at the earliest event seen.
     """
     valid = [f for f in all_frames if f['_epoch_ms'] is not None]
     if not valid:

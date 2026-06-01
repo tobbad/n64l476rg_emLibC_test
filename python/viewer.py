@@ -401,7 +401,13 @@ class SerialWorker(QThread):
                 self.lines_rx += 1
                 self.last_line = line
 
-                # Build the first anchor from the very first tick we see
+                # Build the first anchor from the very first tick we see.
+                # Unlike a log file (which carries real PC timestamps per line),
+                # a live stream has none, so we map the first received tick to
+                # "now". This is approximate: USB/serial buffering and the round
+                # trip of the "R" request add latency, so the absolute offset of
+                # this source can be shifted by that much relative to others.
+                # Within one source it stays exact (ticks run at ~1 ms each).
                 if not anchor_set:
                     tick, _ = extract_tick_msg(line)
                     if tick is not None:
