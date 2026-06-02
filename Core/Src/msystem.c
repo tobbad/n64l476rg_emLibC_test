@@ -49,7 +49,7 @@ void irqAction(char *para) {
     serial_mode_set(RAW);
     // printf("# subslot   time"NL);
     // printf("irqTimimg = ["NL);
-    for (uint8_t idx = 0; idx < SYSTEM_SLOT_CNT; idx++) {
+    for (uint8_t idx = 0; idx < SLOT_CNT; idx++) {
         printf("      %3d  %9" PRId64 "  " NL, idx, irqtime[idx]);
     };
     // printf("]"NL);

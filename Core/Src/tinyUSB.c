@@ -34,7 +34,7 @@ void tud_cdc_rx_cb(uint8_t itf) {
     if (count > 0) {
         tud_cdc_n_read(itf, urx_buffer.mem, RX_BUFFER_SIZE);
         buffer_set(&urx_buffer, urx_buffer.mem, count);
-        time_start(urxhdl, count, urx_buffer.mem, &rb_system.cycle);
+        time_start(urxhdl, count, urx_buffer.mem, &msystem.cycle);
     }
 }
 

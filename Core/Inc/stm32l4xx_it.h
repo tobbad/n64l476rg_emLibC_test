@@ -37,7 +37,7 @@ extern "C" {
 
 /* Exported constants --------------------------------------------------------*/
 /* USER CODE BEGIN EC */
-extern int64_t irqtime[SYSTEM_SLOT_CNT];
+extern int64_t irqtime[SLOT_CNT];
 
 /* USER CODE END EC */
 

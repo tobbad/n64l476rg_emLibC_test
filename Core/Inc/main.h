@@ -45,6 +45,7 @@ extern "C" {
 #include "ssd1306_tests.h"
 #include "githash.h"
 #include "display.h"
+#include "tusb.h"
 
 
 /* USER CODE END Includes */
@@ -78,7 +79,7 @@ extern time_handle_t   timehdl;
 #else
     #define VPRINT(...)
 #endif
-
+#define USE_TINY_USB
 /* USER CODE END EM */
 
 /* Exported functions prototypes ---------------------------------------------*/

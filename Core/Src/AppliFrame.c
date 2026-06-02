@@ -94,7 +94,7 @@ bool AppliFrame_CheckSlot(AppliFrame_t *frame) {
     if (frame->slot != frame->payload.slot) {
         return false;
     }
-    if ((frame->slot < 0) || (frame->slot >= SYSTEM_SLOT_CNT)) {
+    if ((frame->slot < 0) || (frame->slot >= SLOT_CNT)) {
         return false;
     }
     return true;

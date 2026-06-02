@@ -25,6 +25,10 @@
 #include "cycle.h"
 #include "msystem.h"
 #include "stateled.h"
+#ifdef USE_TINY_USB
+#include "tusb.h"
+#endif
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -44,7 +48,7 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN PV */
-int64_t irqtime[SYSTEM_SLOT_CNT];
+int64_t irqtime[SLOT_CNT];
 
 /* USER CODE END PV */
 
@@ -256,7 +260,7 @@ void USART2_IRQHandler(void) {
 void OTG_FS_IRQHandler(void) {
     /* USER CODE BEGIN OTG_FS_IRQn 0 */
 #ifdef USE_TINY_USB
-    dcd_int_handler(0);
+    dcd_int_handler(BOARD_TUD_RHPORT);
     return;
 #endif
     /* USER CODE END OTG_FS_IRQn 0 */
