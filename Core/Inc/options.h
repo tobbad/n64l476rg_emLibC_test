@@ -8,7 +8,6 @@
 #ifndef INC_OPTIONS_H_
 #define INC_OPTIONS_H_
 
-
 #define OPTION_LIMIT_ISM      1
 #define OPTION_BAND_SCAN      0
 #define OPTION_USB_ON         1

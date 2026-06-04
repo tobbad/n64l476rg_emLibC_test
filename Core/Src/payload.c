@@ -5,12 +5,12 @@
  *      Author: TBA
  */
 #include "payload.h"
-#include "options.h"
 #include "state.h"
+#include "options.h"
 
 uint8_t payload_size = sizeof(payload_t);
 
-void payload_init(payload_t *payload, uint8_t slot) {
+void payload_init(payload_t * payload, uint8_t slot){
     if (!payload) return;
     memset(payload, -1, sizeof(payload_t));
     payload->slot   = slot;
@@ -46,14 +46,14 @@ void payload_set_dirty(payload_t *payload) {
     state_set_dirty(&payload->state);
 }
 
-bool payload_get_dirty(payload_t *payload) {
+bool payload_get_dirty(payload_t * payload){
     if (!payload->init)
-        return false;
+         return false;
     return payload->state.dirty;
 }
 
 void payload_set_undirty(payload_t *payload) {
-    if (!payload->init) return;
+    if (!payload->init)  return;
     state_set_undirty(&payload->state);
 }
 
@@ -63,7 +63,7 @@ em_msg payload_propagateKey(payload_t *payload, uint8_t nr) {
 }
 
 void payload_copyB2Pl(const uint8_t *buffer, payload_t *payload) {
-    if (!payload->init) return;
+    if (!payload->init)  return;
     payload->slot        = *buffer++;
     payload->hubCnt      = *buffer++;
     payload->init        = *buffer++;
@@ -137,5 +137,5 @@ bool payload_merge(payload_t *in, payload_t *out) {
 void payload_copy(const payload_t *in, payload_t *out) {
     if ((!in->init) && (out->init)) return;
     out->slot = in->slot;
-    state_copy(&in->state, &out->state);
+    state_copy( &in->state, &out->state);
 }

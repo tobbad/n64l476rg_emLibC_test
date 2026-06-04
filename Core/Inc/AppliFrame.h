@@ -52,6 +52,7 @@ extern AppliFrame_t keepAlivePackage;
 void AppliFrame_Init(AppliFrame_t *frame, int8_t slot);
 void AppliFrame_Reset(AppliFrame_t *frame);
 bool AppliFrame_IsDirty(AppliFrame_t *frame);
+bool AppliFrame_IsAck(AppliFrame_t *frame);
 void AppliFrame_SetDirty(AppliFrame_t *frame);
 int8_t AppliFrame_GetSlot(AppliFrame_t *frame);
 void AppliFrame_SetSlot(AppliFrame_t *frame, int8_t slot);

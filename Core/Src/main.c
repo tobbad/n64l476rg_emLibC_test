@@ -67,9 +67,10 @@ dev_handle_t sDev;
 dev_handle_t eDev;
 static buffer_t rxb = { .size = RX_BUFFER_SIZE };
 static buffer_t txb = { .size = TX_BUFFER_SIZE };
-sio_t serial = { .uart = &huart2, .buffer = { &rxb, &txb }, .mode = RAW | TIMESTAMP };
-buffer_t        urx_buffer = { .size = USB_TX_BUFFER_SIZE, .type = RING };
-buffer_t        utx_buffer = { .size = USB_TX_BUFFER_SIZE, .type = RING };
+sio_t serial = { .uart = &huart2, .buffer = { &rxb, &txb }, .mode = RAW
+        | TIMESTAMP };
+buffer_t urx_buffer = { .size = USB_TX_BUFFER_SIZE, .type = RING };
+buffer_t utx_buffer = { .size = USB_TX_BUFFER_SIZE, .type = RING };
 time_handle_t timehdl;
 /* USER CODE END PV */
 
@@ -118,7 +119,7 @@ int main(void) {
     /* USER CODE BEGIN Init */
     uint32_t ledCnt = 0;
     uint16_t uniq_id[2];
-    char     text[CHAR_PER_LINE];
+    char text[CHAR_PER_LINE];
     state_t system_state;
     state_init(&system_state);
     system_state.first = 1;
@@ -184,7 +185,7 @@ int main(void) {
     if (strlen(git_hash)) {
         printf("Git hash        = %s:" NL, git_hash);
         printf("MCU Series      = %s" NL, MCU);
-        board_get_unique_id(uniq_id, 2*sizeof(uint32_t));
+        board_get_unique_id(uniq_id, 2 * sizeof(uint32_t));
         printf("UNIQ ID[0]      = 0x%08x" NL, uniq_id[0]);
         printf("UNIQ ID[1]      = 0x%08x" NL, uniq_id[1]);
         printf("sizeof(state_t) = %d" NL, sizeof(state_t));
@@ -220,7 +221,7 @@ int main(void) {
     while (1) {
 #ifdef USE_TINY_USB
         snprintf(text, TX_BUFFER_SIZE, "tusb");
-        time_start(timehdl, TX_BUFFER_SIZE, (uint8_t*)text, &msystem.cycle);
+        time_start(timehdl, TX_BUFFER_SIZE, (uint8_t*) text, &msystem.cycle);
         tud_task();
         tinyUSB_app_task();
         time_stop(timehdl, NULL);
@@ -274,10 +275,10 @@ int main(void) {
 
             HAL_Delay(CYCLE_MS);
         }
-
-        /* USER CODE END 3 */
     }
+    /* USER CODE END 3 */
 }
+
 /**
  * @brief System Clock Configuration
  * @retval None
@@ -389,6 +390,7 @@ static void MX_I2C1_Init(void) {
     /* USER CODE BEGIN I2C1_Init 2 */
 
     /* USER CODE END I2C1_Init 2 */
+
 }
 
 /**
@@ -412,6 +414,7 @@ static void MX_RNG_Init(void) {
     /* USER CODE BEGIN RNG_Init 2 */
 
     /* USER CODE END RNG_Init 2 */
+
 }
 
 /**
@@ -455,6 +458,7 @@ static void MX_TIM1_Init(void) {
     /* USER CODE BEGIN TIM1_Init 2 */
 
     /* USER CODE END TIM1_Init 2 */
+
 }
 
 /**
@@ -487,6 +491,7 @@ static void MX_USART2_UART_Init(void) {
     /* USER CODE BEGIN USART2_Init 2 */
 
     /* USER CODE END USART2_Init 2 */
+
 }
 
 /**
@@ -519,6 +524,7 @@ static void MX_USB_OTG_FS_PCD_Init(void) {
     /* USER CODE BEGIN USB_OTG_FS_Init 2 */
 
     /* USER CODE END USB_OTG_FS_Init 2 */
+
 }
 
 /**
@@ -536,6 +542,7 @@ static void MX_DMA_Init(void) {
     /* DMA1_Channel7_IRQn interrupt configuration */
     HAL_NVIC_SetPriority(DMA1_Channel7_IRQn, 4, 0);
     HAL_NVIC_EnableIRQ(DMA1_Channel7_IRQn);
+
 }
 
 /**
@@ -561,6 +568,10 @@ static void MX_GPIO_Init(void) {
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
+    /* EXTI interrupt init*/
+    HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
+
     /* USER CODE BEGIN MX_GPIO_Init_2 */
 
     /* USER CODE END MX_GPIO_Init_2 */
@@ -583,17 +594,18 @@ void Error_Handler(void) {
     /* USER CODE END Error_Handler_Debug */
 }
 #ifdef USE_FULL_ASSERT
-    /**
-     * @brief  Reports the name of the source file and the source line number
-     *         where the assert_param error has occurred.
-     * @param  file: pointer to the source file name
-     * @param  line: assert_param error line source number
-     * @retval None
-     */
-    void assert_failed(uint8_t *file, uint32_t line) {
-        /* USER CODE BEGIN 6 */
+/**
+  * @brief  Reports the name of the source file and the source line number
+  *         where the assert_param error has occurred.
+  * @param  file: pointer to the source file name
+  * @param  line: assert_param error line source number
+  * @retval None
+  */
+void assert_failed(uint8_t *file, uint32_t line)
+{
+  /* USER CODE BEGIN 6 */
         /* User can add his own implementation to report the file name and line number,
            ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
-        /* USER CODE END 6 */
-    }
+  /* USER CODE END 6 */
+}
 #endif /* USE_FULL_ASSERT */

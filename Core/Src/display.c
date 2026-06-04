@@ -10,8 +10,9 @@
 #include "ssd1306_fonts.h"
 #include "state.h"
 
-const allign_e def_alli              = Centered;
-char          *state_to_str[LOC_CNT] = {
+
+const allign_e def_alli = Centered;
+char *state_to_str[LOC_CNT] = {
     (char *)&"OF",
     (char *)&"BL",
     (char *)&"ON",
@@ -153,7 +154,7 @@ static void display_states_update(bool doShowLine) {
             memcpy(&my_display.line[STATE].line[2 * i], state_to_str[my_display.state->state[idx]], 2);
         }
     }
-    uint16_t crc                 = common_crc16((uint8_t *)&my_display.line[STATE].line, CHAR_PER_LINE - 1);
+    uint16_t crc = common_crc16((uint8_t *)&my_display.line[STATE].line, CHAR_PER_LINE - 1);
     my_display.line[STATE].dirty = (crc != my_display.line[STATE].crc);
     my_display.line[STATE].crc   = crc;
     my_display.dirty |= my_display.line[STATE].dirty;

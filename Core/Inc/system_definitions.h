@@ -7,8 +7,6 @@
 
 #ifndef INC_SYSTEM_DEFINITIONS_H_
 #define INC_SYSTEM_DEFINITIONS_H_
-#include "AppliFrame.h"
-
 #ifndef MY_BUTTON_CNT
 #define MY_BUTTON_CNT 8
 #endif
@@ -17,7 +15,7 @@
 #define TX_BUFFER_SIZE 96
 #endif
 #ifndef RX_BUFFER_SIZE
-#define RX_BUFFER_SIZE sizeof(AppliFrame_t)
+#define RX_BUFFER_SIZE TX_BUFFER_SIZE
 #endif
 
 #define USB_TX_BUFFER_SIZE 1024
