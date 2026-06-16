@@ -99,7 +99,7 @@ bool AppliFrame_CheckSlot(AppliFrame_t *frame){
     if (frame->slot != frame->payload.slot){
         return false;
     }
-    if ((frame->slot<0) ||(frame->slot>=SLOT_CNT)){
+    if ((frame->slot<0) ||(frame->slot>=CYCLE_SLOT_CNT)){
         return false;
     }
     return true;
@@ -153,7 +153,7 @@ uint32_t AppliFrame_CopyPl2F(const payload_t *payload, AppliFrame_t *frame) {
 
 void AppliFrame_Print(const AppliFrame_t *msg, char *rxtx, bool printPayload, bool doLong) {
     if (rxtx != NULL) {
-        printf("%s: %s "NL, rxtx, cycle_string(&msystem.cycle));
+        printf("%s: %s "NL, rxtx, cycle_string(&cycle));
     }
     int16_t pktLen = AppliFrame_StateSize(msg);
     if (doLong){

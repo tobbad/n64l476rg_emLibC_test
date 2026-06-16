@@ -28,6 +28,7 @@ extern "C" {
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "msystem.h"
+#include "cycle.h"
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/
@@ -37,7 +38,7 @@ extern "C" {
 
 /* Exported constants --------------------------------------------------------*/
 /* USER CODE BEGIN EC */
-extern int64_t irqtime[SLOT_CNT];
+extern int64_t irqtime[CYCLE_SLOT_CNT];
 
 /* USER CODE END EC */
 

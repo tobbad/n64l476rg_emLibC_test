@@ -157,6 +157,7 @@ int main(void) {
     MX_TIM1_Init();
     MX_USB_OTG_FS_PCD_Init();
     /* USER CODE BEGIN 2 */
+    cycle_init(&cycle);
     time_init(); // must be called after SystemClock_Config()
     timehdl = time_new("timehdl");
     time_set_max(timehdl, 1); // Keep boot up time
@@ -178,6 +179,7 @@ int main(void) {
     msystem_init(&system_state);
     sDev = keyboard_init(&serial_dev, &serial);
     eDev = keyboard_init(&eight_dev, NULL);
+
     VPRINT("*************" NL);
     printf("*************" NL);
     printf("*************" NL);
@@ -221,7 +223,7 @@ int main(void) {
     while (1) {
 #ifdef USE_TINY_USB
         snprintf(text, TX_BUFFER_SIZE, "tusb");
-        time_start(timehdl, TX_BUFFER_SIZE, (uint8_t*) text, &msystem.cycle);
+        time_start(timehdl, TX_BUFFER_SIZE, (uint8_t*) text, &cycle);
         tud_task();
         tinyUSB_app_task();
         time_stop(timehdl, NULL);

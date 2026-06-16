@@ -49,7 +49,7 @@ void irqAction(char *para) {
     serial_mode_set(RAW);
     // printf("# subslot   time"NL);
     // printf("irqTimimg = ["NL);
-    for (uint8_t idx = 0; idx < SLOT_CNT; idx++) {
+    for (uint8_t idx = 0; idx < CYCLE_SLOT_CNT; idx++) {
         printf("      %3d  %9" PRId64 "  " NL, idx, irqtime[idx]);
     };
     // printf("]"NL);
@@ -61,10 +61,7 @@ void resetAction(char *para) {
 
 void stateAction(char *para) {
     printf("slot      = %d" NL, msystem.slot);
-    printf("subSlot   = %d" NL, msystem.cycle.subSlot);
-    printf("sSlot     = %d" NL, ACT_SUB_SLOT(&msystem.cycle));
-    printf("actSlot   = %d" NL, ACT_SLOT(&msystem.cycle));
-    printf("cycle cnt = %d" NL, msystem.cycle.cycle);
+    cycle_print(&cycle,"Action");
 }
 
 typedef struct cmd2action_s {
@@ -117,7 +114,6 @@ void msystem_init(state_t *system_state) {
     msystem.system_state = system_state;
     msystem.sync_state   = SYNC_RESET;
     msystem.slot         = -1;
-    cycle_init(&msystem.cycle);
     GpioPortInit(msystem.user_pin);
     cmda2action.max_len = 0;
     for (uint8_t i = 0; i < cmda2action.cnt; i++) {
@@ -129,7 +125,7 @@ void msystem_init(state_t *system_state) {
 
 em_msg msystem_set_slot(int8_t slot) {
     if (cycle_check_slot(slot) >= 0) {
-        cycle_set_slot(&msystem.cycle, slot);
+        cycle_set_slot(&cycle, slot);
         return EM_OK;
     } else {
         return EM_ERR;

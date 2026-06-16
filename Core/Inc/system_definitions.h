@@ -30,13 +30,6 @@
 #define KEEP_ALIVE_CYCLE_CNT (uint16_t)30 // is set so that at least once in a KEEP_ALIVE_CYCLE_CNT Frame cycle a frame is sent
 #define MY_SLOT_CNT 8
 #define MAX_SEND_SUB_SLOT_CNT 1
-#define SUB_SLOT_POW2 3
-#define SUB_SLOT_CNT (1<<SUB_SLOT_POW2)
-#define SUB_SLOT_MASK (SUB_SLOT_CNT-1)
-#define SLOT_POW2 4
-#define SLOT_CNT (1<<SLOT_POW2)
-#define SLOT_MASK (SLOT_CNT-1)
-#define SLOT_SHIFT (SUB_SLOT_POW2)
 
 #define KEEP_ALIVE_CYCLE_VALUE  (int16_t)KEEP_ALIVE_CYCLE_CNT*SLOT_CNT
 #define TIME_SUB_SLOT_DURATIOM_MS 2.5

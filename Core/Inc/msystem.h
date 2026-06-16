@@ -19,7 +19,6 @@
 
 typedef struct msystem_s{
     uint8_t      slot;
-    cycle_t      cycle;
     gpio_port_t  *user_pin;
     system_state_e sync_state;
     state_t *    system_state;

@@ -48,7 +48,7 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN PV */
-int64_t irqtime[SLOT_CNT];
+int64_t irqtime[CYCLE_SLOT_CNT];
 
 /* USER CODE END PV */
 
@@ -244,7 +244,7 @@ void DMA1_Channel7_IRQHandler(void)
 void TIM1_UP_TIM16_IRQHandler(void)
 {
   /* USER CODE BEGIN TIM1_UP_TIM16_IRQn 0 */
-    cycle_increment(&msystem.cycle, &msystem.sync_state);
+    cycle_increment(&cycle, &msystem.sync_state);
 
   /* USER CODE END TIM1_UP_TIM16_IRQn 0 */
   HAL_TIM_IRQHandler(&htim1);
