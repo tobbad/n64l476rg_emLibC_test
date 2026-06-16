@@ -123,9 +123,9 @@ void msystem_init(state_t *system_state) {
     printf("Maximal command length is %d" NL, cmda2action.max_len);
 }
 
-em_msg msystem_set_slot(int8_t slot) {
+em_msg msystem_set_slot(int8_t slot, set_slot_e ss_type) {
     if (cycle_check_slot(slot) >= 0) {
-        cycle_set_slot(&cycle, slot);
+        cycle_set_slot(&cycle, slot, ss_type);
         return EM_OK;
     } else {
         return EM_ERR;

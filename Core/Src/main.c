@@ -157,7 +157,7 @@ int main(void) {
     MX_TIM1_Init();
     MX_USB_OTG_FS_PCD_Init();
     /* USER CODE BEGIN 2 */
-    cycle_init(&cycle);
+    cycle_init(&cycle, PRE_SUBSLOT_CNT);
     time_init(); // must be called after SystemClock_Config()
     timehdl = time_new("timehdl");
     time_set_max(timehdl, 1); // Keep boot up time
