@@ -40,7 +40,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define UNIQ_ID_LEN 12
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -118,7 +118,7 @@ int main(void) {
 
     /* USER CODE BEGIN Init */
     uint32_t ledCnt = 0;
-    uint16_t uniq_id[2];
+    uint8_t      uniq_id[UNIQ_ID_LEN];
     char text[CHAR_PER_LINE];
     state_t system_state;
     state_init(&system_state);
@@ -157,7 +157,8 @@ int main(void) {
     MX_TIM1_Init();
     MX_USB_OTG_FS_PCD_Init();
     /* USER CODE BEGIN 2 */
-    cycle_init(&cycle, PRE_SUBSLOT_CNT);
+    msystem_init(&system_state, NULL);
+    cycle_init(&cycle, msystem.slot, SS_SUBSLOT_PRE, SS_SUBSLOT_POST, &msystem.sync_state, &htim1);
     time_init(); // must be called after SystemClock_Config()
     timehdl = time_new("timehdl");
     time_set_max(timehdl, 1); // Keep boot up time
@@ -176,22 +177,26 @@ int main(void) {
 
     HAL_TIM_Base_Start_IT(&htim1);
     HAL_TIM_Base_Start(&htim1);
-    msystem_init(&system_state);
     sDev = keyboard_init(&serial_dev, &serial);
     eDev = keyboard_init(&eight_dev, NULL);
-
     VPRINT("*************" NL);
     printf("*************" NL);
     printf("*************" NL);
     printf("Start logging" NL);
     if (strlen(git_hash)) {
-        printf("Git hash        = %s:" NL, git_hash);
-        printf("MCU Series      = %s" NL, MCU);
-        board_get_unique_id(uniq_id, 2 * sizeof(uint32_t));
-        printf("UNIQ ID[0]      = 0x%08x" NL, uniq_id[0]);
-        printf("UNIQ ID[1]      = 0x%08x" NL, uniq_id[1]);
-        printf("sizeof(state_t) = %d" NL, sizeof(state_t));
-        printf("HAL_VERSION     = %04lx" NL, HAL_GetHalVersion());
+        printf("Git hash             = %s:" NL, git_hash);
+        printf("MCU Series           = %s" NL, MCU);
+        board_get_unique_id(uniq_id, UNIQ_ID_LEN);
+        printf("UNIQ ID[0]           = 0x%04x" NL, *(uint16_t*)&uniq_id[0]);
+        printf("UNIQ ID[1]           = 0x%04x" NL, *(uint16_t*)&uniq_id[2]);
+        printf("UNIQ ID[2]           = 0x%04x" NL, *(uint16_t*)&uniq_id[4]);
+        printf("UNIQ ID[3]           = 0x%04x" NL, *(uint16_t*)&uniq_id[6]);
+        printf("UNIQ ID[4]           = 0x%04x" NL, *(uint16_t*)&uniq_id[8]);
+        printf("UNIQ ID[5]           = 0x%04x" NL, *(uint16_t*)&uniq_id[10]);
+        printf("sizeof(AppliFrame_t) = %d" NL, APPLIFRAME_SIZE_ON_AIR);
+        printf("sizeof(payload_t)    = %d" NL, sizeof(payload_t));
+        printf("sizeof(state_t)      = %d" NL, sizeof(state_t));
+        printf("HAL_VERSION          = %04lx" NL, HAL_GetHalVersion());
 #ifdef HAL_PCD_MODULE_ENABLED
         printf("USB is active" NL);
 #else
@@ -217,7 +222,6 @@ int main(void) {
     printf("Set synchronisation state to %s" NL,
             idxa2str(&synca2str, msystem.sync_state));
     /* USER CODE END 2 */
-
     /* Infinite loop */
     /* USER CODE BEGIN WHILE */
     while (1) {

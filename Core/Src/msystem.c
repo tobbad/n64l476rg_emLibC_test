@@ -109,7 +109,7 @@ void helpAction(char *para) {
     }
 }
 
-void msystem_init(state_t *system_state) {
+void msystem_init(state_t *system_state, gpio_port_t *my_ledline) {
     msystem.user_pin     = &user_pin;
     msystem.system_state = system_state;
     msystem.sync_state   = SYNC_RESET;
@@ -119,7 +119,7 @@ void msystem_init(state_t *system_state) {
     for (uint8_t i = 0; i < cmda2action.cnt; i++) {
         cmda2action.max_len = MAX(cmda2action.max_len, strlen(actionsOnInput[i].cmd));
     }
-    stateled_init(msystem.system_state, NULL, BLINKING_CNT * MY_SLOT_CNT, BLINKING_IT_CNT);
+    stateled_init(msystem.system_state, my_ledline, BLINKING_CNT * MY_SLOT_CNT, BLINKING_IT_CNT);
     printf("Maximal command length is %d" NL, cmda2action.max_len);
 }
 

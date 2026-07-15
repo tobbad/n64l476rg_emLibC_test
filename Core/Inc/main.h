@@ -31,6 +31,8 @@ extern "C" {
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "AppliFrame.h"
+#include "payload.h"
 #include "common.h"
 #include "buffer.h"
 #include "msystem.h"

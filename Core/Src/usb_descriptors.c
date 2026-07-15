@@ -25,7 +25,7 @@
 
 //#include "bsp/board_api.h"
 #include "tusb.h"
-
+#include "common.h"
 /* A combination of interfaces must have a unique product id, since PC will save device driver after the first plug.
  * Same VID/PID with different interface e.g MSC (first), then CDC (later) will possibly cause system error on PC.
  *
@@ -237,11 +237,11 @@ static const char *string_desc_arr[] = {
   "TinyUSB MSC",              // 5: MSC Interface
 };
 
-static uint16_t _desc_str[32 + 1];
+static uint8_t _desc_str[UNIQ_ID_LEN + 1];
 
 // Invoked when received GET STRING DESCRIPTOR request
 // Application return pointer to descriptor, whose contents must exist long enough for transfer to complete
-const uint16_t *tud_descriptor_string_cb(uint8_t index, uint16_t langid) {
+const uint8_t *tud_descriptor_string_cb(uint8_t index, uint16_t langid) {
   (void)langid;
   size_t chr_count;
 
@@ -252,7 +252,7 @@ const uint16_t *tud_descriptor_string_cb(uint8_t index, uint16_t langid) {
       break;
 
     case STRID_SERIAL:
-      chr_count = board_get_unique_id(_desc_str + 1, 32);
+      chr_count = board_get_unique_id(_desc_str, UNIQ_ID_LEN);
       break;
 
     default:
