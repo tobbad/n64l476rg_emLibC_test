@@ -6,6 +6,7 @@
  */
 #include "payload.h"
 #include "state.h"
+#include "cycle.h"
 #include "options.h"
 
 uint8_t payload_size = sizeof(payload_t);

@@ -21,10 +21,10 @@
 #define USB_TX_BUFFER_SIZE 1024
 #define SYNCHRONIZATION_THRESHOLD 15 // How many correct slot are received
 #define CYCLE_MS           1   // Time in ms for loop
-#define SS_SUBSLOT_PRE     2   // How much subslot around the actual slot I am allowed to send
-#define SS_SUBSLOT_POST    2// after the correct slot a received package is not noticed
-#define CYCLE_RESET_CNT    3   //ever CYCLE_RESET_CNT sync_state is put to  SYNC_READY
-#define RADIO_CNT_MAX      300
+#define SS_SUBSLOT_PRE     11  // How much subslot around the actual slot I am allowed to send
+#define SS_SUBSLOT_POST    -3  // correction in sub slot to the actual cycle
+#define SS_SUBSLOT_RX_DIFF 8   // diference below this value is not notified
+#define BLINKING_MS        500
 #define BLINKING_CNT       500  // Key led blinking update multiplied by slot time
 #define BLINKING_IT_CNT    5
 #define BUF_SIZ 26

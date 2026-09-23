@@ -29,7 +29,7 @@ extern msystem_t msystem;
 void msystem_init(state_t * system_state, gpio_port_t *my_ledline);
 void msystem_reset();
 void msystem_synchronize();
-em_msg msystem_set_slot(int8_t slot, set_slot_e ss_type);
+em_msg msystem_set_slot(int8_t slot, dev_role_e ss_type);
 int8_t msystem_check_slot(int8_t slot);
 system_state_e msystem_check_sync();
 em_msg msystem_action(char *cmd);

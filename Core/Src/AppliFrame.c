@@ -66,7 +66,7 @@ void AppliFrame_Init(AppliFrame_t *frame, int8_t slot) {
 }
 
 void AppliFrame_Reset(AppliFrame_t *frame) {
-#if SYNCHRONIZE_DOING ==1
+#if OPTION_VERBOSE ==1
     printf("Reset payload AppliFrame @ addr %p" NL, frame);
 #endif
     frame->Cmd     = CMDT_RESET;

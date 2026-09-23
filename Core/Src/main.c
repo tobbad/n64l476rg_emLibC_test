@@ -40,7 +40,6 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define UNIQ_ID_LEN 12
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -158,7 +157,8 @@ int main(void) {
     MX_USB_OTG_FS_PCD_Init();
     /* USER CODE BEGIN 2 */
     msystem_init(&system_state, NULL);
-    cycle_init(&cycle, msystem.slot, SS_SUBSLOT_PRE, SS_SUBSLOT_POST, &msystem.sync_state, &htim1);
+    cycle_init(&cycle, 3 , SS_SUBSLOT_PRE, SS_SUBSLOT_POST, SS_SUBSLOT_RX_DIFF, CYCLE_MASTER_KEEP_ALIVE_CYCLE_CNT, &htim1);
+
     time_init(); // must be called after SystemClock_Config()
     timehdl = time_new("timehdl");
     time_set_max(timehdl, 1); // Keep boot up time
@@ -221,6 +221,7 @@ int main(void) {
     msystem.sync_state = SYNCHRONIZE;
     printf("Set synchronisation state to %s" NL,
             idxa2str(&synca2str, msystem.sync_state));
+    uint32_t    lTick= HAL_GetTick();
     /* USER CODE END 2 */
     /* Infinite loop */
     /* USER CODE BEGIN WHILE */
@@ -275,13 +276,16 @@ int main(void) {
             /* USER CODE END WHILE */
 
             /* USER CODE BEGIN 3 */
-            if ((ledCnt++ % RADIO_CNT_MAX) == 0) {
-                msystem_user_led_toggle(user_led);
+            uint32_t    tTick= HAL_GetTick();
+            uint32_t    delta_tick= tTick-lTick;
+            if (delta_tick > BLINKING_MS) {
+                lTick = tTick;
+                GpioPinToggle(&msystem.user_pin->pin[user_led]);
             }
-
-            HAL_Delay(CYCLE_MS);
+            time_stop(timehdl, NULL);
         }
     }
+
     /* USER CODE END 3 */
 }
 
