@@ -20,6 +20,8 @@
 
 #define USB_TX_BUFFER_SIZE 1024
 #define SYNCHRONIZATION_THRESHOLD 15 // How many correct slot are received
+#define RECEIVED_THRESHOLD 8
+#define USB_ENUM_TIMEOUT_MS 1000 // Wie lange beim Start auf das Ende der USB Enumeration gewartet wird
 #define CYCLE_MS           1   // Time in ms for loop
 #define SS_SUBSLOT_PRE     11  // How much subslot around the actual slot I am allowed to send
 #define SS_SUBSLOT_POST    -3  // correction in sub slot to the actual cycle
@@ -29,11 +31,11 @@
 #define BLINKING_IT_CNT    5
 #define BUF_SIZ 26
 #define MAX_HUB_CNT 1
-#define KEEP_ALIVE_CYCLE_CNT (uint16_t)30 // is set so that at least once in a KEEP_ALIVE_CYCLE_CNT Frame cycle a frame is sent
 #define MY_SLOT_CNT 8
 #define MAX_SEND_SUB_SLOT_CNT 1
+#define USE_TINY_USB
+#define TINY_USB_MSC
 
-#define KEEP_ALIVE_CYCLE_VALUE  (int16_t)KEEP_ALIVE_CYCLE_CNT*SLOT_CNT
 #define TIME_SUB_SLOT_DURATIOM_MS 2.5
 #define USE_26MHz_OSCI 1 // Osci not crystal!
 #define ACTIVE_SLOT_USAGE 0.5

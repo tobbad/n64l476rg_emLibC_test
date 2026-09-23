@@ -22,11 +22,51 @@
  * THE SOFTWARE.
  *
  */
-#include "cycle.h"
-#include "main.h"
-#include "stm32l4xx_hal.h"
 #include "tusb.h"
-void tinyUSB_app_task(void) {
+#include "stm32l4xx_hal.h"
+#include "main.h"
+#include "cycle.h"
+#include <stdarg.h>
+#include <stdio.h>
+
+
+// Called by TU_ASSERT instead of "BKPT #0" (CFG_TUSB_DEBUG_BREAKPOINT in
+// tusb_config.h). Records that an assert fired and where it came from, without
+// halting the core. To catch one live, put a normal breakpoint on this function;
+// rb_tusb_assert_from holds the caller address -> "info symbol" in gdb, or look
+// it up in the .map file.
+volatile uint32_t  rb_tusb_assert_cnt  = 0;
+volatile void     *rb_tusb_assert_from = NULL;
+
+void rb_tusb_assert_hook(void){
+    rb_tusb_assert_cnt++;
+    rb_tusb_assert_from = __builtin_return_address(0);
+}
+
+// Output for TU_LOG (CFG_TUSB_DEBUG_PRINTF in tusb_config.h). Writes straight to
+// USART2, bypassing serial.c/printf() so that nothing here depends on the USB
+// stack. Blocking on purpose: TU_LOG is also reached from the USB IRQ, where a
+// buffered path could reorder or drop the very message we need.
+int rb_tusb_printf(const char *format, ...){
+    static char line[128];
+    va_list args;
+
+    va_start(args, format);
+    int len = vsnprintf(line, sizeof(line), format, args);
+    va_end(args);
+
+    if (len <= 0) {
+        return len;
+    }
+    if (len > (int)sizeof(line) - 1) {
+        len = (int)sizeof(line) - 1;  // vsnprintf returns the untruncated length
+    }
+    HAL_UART_Transmit(&huart2, (uint8_t *)line, (uint16_t)len, 100);
+    return len;
+}
+
+void tinyUSB_app_task(void){
+
 }
 
 void tud_cdc_rx_cb(uint8_t itf) {

@@ -23,6 +23,9 @@ typedef struct msystem_s{
     gpio_port_t  *user_pin;
     system_state_e sync_state;
     state_t *    system_state;
+    char         usbSerial[2*UNIQ_ID_LEN+1];
+    bool         usb_active;
+
 } msystem_t;
 
 extern msystem_t msystem;

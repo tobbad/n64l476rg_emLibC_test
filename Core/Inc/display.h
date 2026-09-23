@@ -11,7 +11,6 @@
 #include "state.h"
 #include "ssd1306_fonts.h"
 #define DOT_PER_LINE 16
-#define CHAR_PER_LINE (SSD1306_WIDTH/7 + 1)
 
 typedef enum {
     Centered =0,
@@ -24,14 +23,16 @@ typedef enum {
 } line_e;
 
 #define DOT_PER_LINE 16
-#define DISPLAY_LINE_CNT SSD1306_HEIGHT/(10)-1
-#define CHAR_PER_LINE    (SSD1306_WIDTH/7 + 1)
+#define LINE_CNT SSD1306_HEIGHT/(10)-1
+#define CHAR_PER_LINE  (SSD1306_WIDTH/7 + 1)
 
 //extern char* state2str[];
 #define ENTRY_SIZE 3
-extern char *state_to_str[LOC_CNT];
-void display_init(state_t *state, uint16_t cycle_size, const SSD1306_Font_t *font );
-void display_update();
+void display_scan();
+bool display_init(state_t *state, uint16_t cycle_size, const SSD1306_Font_t *font );
+void display_clear(bool header);
+void display_set_label();
+void display_update(system_state_e state, bool force);
 void display_setAttr(line_e lineNr, key_state_e attr);
 void display_write_txt2line(line_e lineNr, const char * text, allign_e loc );
 void display_write_line(line_e lineNr);

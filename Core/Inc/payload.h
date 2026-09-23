@@ -39,7 +39,7 @@ void payload_copy(const payload_t * in, payload_t * out);
 void payload_copyPl2B(const payload_t * payload, uint8_t *buffer);
 void payload_copyB2Pl(const uint8_t *buffer, payload_t * payload);
 bool payload_merge(payload_t * in, payload_t * out);
-void payload_print(const payload_t * payload, const char *title, bool doLong);
+void payload_print(const payload_t * payload, const char *title, bool doLong, cycle_t *cycle);
 em_msg payload_check(payload_t * pl);
 
 #endif /* INC_PAYLOAD_H_ */

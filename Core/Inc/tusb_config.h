@@ -57,9 +57,27 @@
 #define CFG_TUSB_OS           OPT_OS_NONE
 #endif
 
+// Level 1 only enables TU_MESS_FAILED ("<func> <line>: ASSERT FAILED").
+// The regular device chatter is TU_LOG(CFG_TUD_LOG_LEVEL) with
+// CFG_TUD_LOG_LEVEL == 2 and therefore stays silent.
 #ifndef CFG_TUSB_DEBUG
+#ifdef DEBUG
+#define CFG_TUSB_DEBUG        1
+#else
 #define CFG_TUSB_DEBUG        0
 #endif
+#endif
+
+// Assert messages go to USART2 only - printf() in this project also feeds the
+// USB CDC (sio_t.mode in main.c), and logging through the very stack that just
+// failed does not work. See rb_tusb_printf().
+#define CFG_TUSB_DEBUG_PRINTF  rb_tusb_printf
+
+// Route failed TU_ASSERT to our own hook instead of the hardcoded "BKPT #0" in
+// tusb_verify.h. That breakpoint only fires while a debugger is attached and
+// cannot be resumed (the PC stays on the BKPT), which halts the USB stack and
+// makes the device disappear from the host. See rb_tusb_assert_hook().
+#define CFG_TUSB_DEBUG_BREAKPOINT  rb_tusb_assert_hook
 
 // Enable Device stack
 #define CFG_TUD_ENABLED       1

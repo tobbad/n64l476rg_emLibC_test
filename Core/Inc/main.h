@@ -81,7 +81,10 @@ extern time_handle_t   timehdl;
     #define VPRINT(...)
 #endif
 #define UNIQ_ID_LEN 12
-#define USE_TINY_USB
+extern time_handle_t  rtxhdl;
+extern time_handle_t  rrxhdl;
+extern char line[TX_BUFFER_SIZE];
+
 /* USER CODE END EM */
 
 /* Exported functions prototypes ---------------------------------------------*/

@@ -10,15 +10,10 @@
 #include "ssd1306_fonts.h"
 #include "state.h"
 
+#define FULL_UPDATE 1
 
 const allign_e def_alli = Centered;
-char *state_to_str[LOC_CNT] = {
-    (char *)&"OF",
-    (char *)&"BL",
-    (char *)&"ON",
-};
 
-char line[MAX_BUTTON_CNT * 2 + 1];
 
 typedef struct line_s {
     allign_e    align;
@@ -26,7 +21,6 @@ typedef struct line_s {
     key_state_e attr;
     bool        dirty;
     uint16_t    crc;
-
 } line_t;
 
 typedef struct display_s {
@@ -34,6 +28,7 @@ typedef struct display_s {
     state_t              *state;
     state_t               lstate;
     line_t                line[LINE_CNT];
+    char                  lbl[CHAR_PER_LINE]; // shadow labels
     const SSD1306_Font_t *font;
     uint8_t               char_x;
     uint8_t               char_y;
@@ -47,66 +42,89 @@ static void      display_lines(bool doShowLine);
 static bool      display_is_dirty();
 static void      display_states_update(bool doShowLine);
 
-void display_init(state_t *state, uint16_t cycle_size, const SSD1306_Font_t *font) {
-    char _line[CHAR_PER_LINE];
+void display_scan(){
+    for (uint8_t adr=0;adr<0x80;adr++){
+        if (HAL_I2C_IsDeviceReady(&hi2c1, adr, 3, 100) == HAL_OK) {
+            // Display erreichbar
+            printf("I2C Device on 0x%02x"NL, adr);
+        }
+    }
+}
+bool  display_init(state_t *state, uint16_t cycle_size, const SSD1306_Font_t *font) {
     my_display.state      = state;
     my_display.cycle_size = cycle_size;
     my_display.font       = font;
     my_display.char_x     = SSD1306_WIDTH / my_display.font->width;
     my_display.char_y     = SSD1306_HEIGHT / my_display.font->height;
     if (HAL_I2C_IsDeviceReady(&hi2c1, SSD1306_I2C_ADDR, 3, 100) == HAL_OK) {
-        // Display erreichbar
+        printf("Display detected on addr %02x"NL, SSD1306_I2C_ADDR);
         ssd1306_Init();
-    } else {
+    } else{
         // Bus immer noch blockiert – Hardware prüfen
-        my_display.init = false;
-        printf("No display" NL);
-        return;
+        my_display.init   = false;
+        printf("No display"NL);
+        return my_display.init;
     }
-    ssd1306_SetDisplayOn(true);
-    ssd1306_Fill(Black);
+    if (my_display.font->height > DOT_PER_LINE){
+        printf("Char height (%d) is larger then DOT_PER_LINE (%d)"NL,  my_display.font->height, DOT_PER_LINE);
+    }
     ssd1306_SetCursor(0, 0);
-
+    char _line[CHAR_PER_LINE];
     memset(_line, 0, CHAR_PER_LINE);
-    for (uint8_t i = 0; i < state->cnt; i++) {
-        _line[2 * i]     = my_display.state->label[i + state->first];
-        _line[2 * i + 1] = ' ';
+    for (uint8_t i = 0; i < my_display.state->cnt; i++) {
+        _line[2 * i ] = ' ';
+        _line[2 * i + 1] = my_display.state->label[i + my_display.state->first];
     }
-    display_write_txt2line(LABEL, _line, Left);
-    for (uint8_t lineNr = 0; lineNr < LINE_CNT; lineNr++) {
-        if (lineNr == LABEL)
-            continue;
+    memcpy(my_display.lbl, _line, strlen(_line));
+    my_display.init   = true;
+    display_clear(true);
+    my_display.lstate = *state;
+    display_lines(true);
+    ssd1306_UpdateScreen();
+    return my_display.init;
+}
+
+void display_clear(bool header){
+    if (!my_display.init)
+        return;
+    for (uint8_t lineNr = header?0:1; lineNr < LINE_CNT; lineNr++) {
         memset(my_display.line[lineNr].line, 0, CHAR_PER_LINE);
         my_display.line[lineNr].align = Left;
         my_display.line[lineNr].dirty = true;
         display_setAttr(lineNr, ON);
     }
-    my_display.init   = true;
-    my_display.lstate = *state;
-    display_lines(true);
-    ssd1306_UpdateScreen();
 }
 
-void display_update() {
+void display_update(system_state_e state, bool force) {
     static uint8_t idx = 0;
-    if (!my_display.init) return;
+    if (!my_display.init)
+        return;
     if (!display_is_dirty())
         return;
-    bool doShow = true; // idx < my_display.cycle_size << 1;
-    display_states_update(doShow);
-    display_lines(doShow);
-    my_display.lstate = *my_display.state;
-    ssd1306_UpdateScreen();
     idx++;
-    my_display.dirty = false;
+    idx = idx%my_display.cycle_size;
+    bool doShow = (idx<my_display.cycle_size)?true:false;
+    if ((idx == 0)|| force){
+        if ((state>=SYNCHRONIZE_READY) &&(state<SYNC_CNT)){
+            my_display.lstate = *my_display.state;
+            display_states_update(doShow);
+            display_lines(doShow);
+            ssd1306_UpdateScreen();
+            my_display.dirty = false;
+        }
+    }
 }
 
 void display_clear_line(line_e lineNr) {
     if (!my_display.init) return;
     uint8_t y_start = lineNr * DOT_PER_LINE;
-    uint8_t y_stop  = (lineNr + 1) * DOT_PER_LINE - 1;
+    uint8_t y_stop = (lineNr + 1) * DOT_PER_LINE - 1;
     ssd1306_FillRectangle(0, y_start, SSD1306_WIDTH - 1, y_stop, Black);
     ssd1306_UpdateScreen();
+}
+void display_set_label() {
+    if (!my_display.init) return;
+    memcpy(&my_display.line[LABEL], my_display.lbl, strlen(my_display.lbl));
 }
 
 void display_write_txt2line(line_e lineNr, const char *text, allign_e loc) {
@@ -124,14 +142,12 @@ void display_write_txt2line(line_e lineNr, const char *text, allign_e loc) {
 }
 
 void display_setAttr(line_e lineNr, key_state_e attr) {
-    if (!my_display.init) return;
     my_display.line[lineNr].attr  = attr;
     my_display.line[lineNr].dirty = true;
     my_display.dirty              = true;
 }
 
 bool display_is_dirty() {
-    if (!my_display.init) return false;
     my_display.dirty = false;
     for (uint8_t lineNr = 0; lineNr < LINE_CNT; lineNr++) {
         my_display.dirty |= my_display.line[lineNr].dirty;
@@ -139,34 +155,41 @@ bool display_is_dirty() {
     return my_display.dirty = my_display.dirty || !state_is_same(&my_display.lstate, my_display.state);
 }
 static void display_states_update(bool doShowLine) {
-    if (!my_display.init) return;
     for (uint8_t i = 0; i < my_display.state->cnt; i++) {
         uint8_t idx = i + my_display.state->first;
-        if (my_display.state->state[idx] == OFF) {
-            memcpy(&my_display.line[STATE].line[2 * i], (uint8_t *)&"  ", 2);
+       char* sstr = state_key_string(OFF);
+       if (my_display.state->state[idx] == OFF) {
+            memcpy(&my_display.line[STATE].line[2 * i], (uint8_t *)(sstr), strlen(sstr));
         } else if (my_display.state->state[idx] == BLINKING) {
             if (doShowLine) {
-                memcpy(&my_display.line[STATE].line[2 * i], state_to_str[my_display.state->state[idx]], 2);
+                char* sstr = (uint8_t *)state_key_string(my_display.state->state[idx]);
+                memcpy(&my_display.line[STATE].line[2 * i],sstr,  strlen(sstr));
             } else {
-                memcpy(&my_display.line[STATE].line[2 * i], (void *)&"  ", 2);
+                memcpy(&my_display.line[STATE].line[2 * i], sstr, strlen(sstr));
             }
         } else {
-            memcpy(&my_display.line[STATE].line[2 * i], state_to_str[my_display.state->state[idx]], 2);
+            memcpy(&my_display.line[STATE].line[2 * i], sstr, strlen(sstr));
         }
     }
     uint16_t crc = common_crc16((uint8_t *)&my_display.line[STATE].line, CHAR_PER_LINE - 1);
     my_display.line[STATE].dirty = (crc != my_display.line[STATE].crc);
-    my_display.line[STATE].crc   = crc;
+    my_display.line[STATE].crc = crc;
     my_display.dirty |= my_display.line[STATE].dirty;
 }
 
 static void display_lines(bool doShowLine) {
-    if (!my_display.init) return;
-    for (uint8_t lineNr = 0; lineNr < LINE_CNT; lineNr++) {
-        if (!my_display.line[lineNr].dirty)
+    if (!my_display.init)
+        return;
+    for (uint8_t lineNr = 0; lineNr < LINE_CNT - 1; lineNr++) {
+        uint16_t crc = common_crc16((uint8_t *)&my_display.line[lineNr].line, CHAR_PER_LINE - 1);
+        if ( crc == my_display.line[lineNr].crc ){
             continue;
+        }
         uint8_t strLen  = strlen(my_display.line[lineNr].line);
-        uint8_t y_start = lineNr * DOT_PER_LINE + (my_display.font->height >> 1);
+        if (strLen==0) {
+            display_clear_line(lineNr);
+        }
+        uint8_t y_start = lineNr * DOT_PER_LINE + ((my_display.font->height) >> 1);
         uint8_t x_start = 0;
         if (my_display.line[lineNr].align == Centered) {
             x_start = (SSD1306_WIDTH - strLen * my_display.font->width) >> 1;
@@ -179,10 +202,11 @@ static void display_lines(bool doShowLine) {
         if ((my_display.line[lineNr].attr == ON) || (my_display.line[lineNr].attr == BLINKING)) {
             ssd1306_WriteString(my_display.line[lineNr].line, *my_display.font, White);
         } else if ((my_display.line[lineNr].attr == BLINKING) && (doShowLine)) {
-            ssd1306_WriteString(line, *my_display.font, White);
+            ssd1306_WriteString(my_display.line[lineNr].line, *my_display.font, White);
         }
-        my_display.line[lineNr].dirty = false;
         ssd1306_UpdateScreen();
+        my_display.line[lineNr].dirty = false;
+        my_display.line[lineNr].crc   = crc;
     }
     my_display.dirty = false;
 }
