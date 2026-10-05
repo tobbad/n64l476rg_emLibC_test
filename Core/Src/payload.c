@@ -104,7 +104,7 @@ void payload_copyPl2B(const payload_t *payload, uint8_t *buffer) {
     }
 };
 
-void payload_print(const payload_t *payload, const char *title, bool doLong) {
+void payload_print(const payload_t *payload, const char *title, bool doLong, cycle_t * cycle) {
     if ((title != NULL) && (doLong)) {
         printf("%s" NL, title);
     }
@@ -121,7 +121,7 @@ void payload_print(const payload_t *payload, const char *title, bool doLong) {
         printf("init       = %d" NL, payload->init);
         printf("conf       = %d" NL, payload->conf);
     }
-    state_print(&payload->state, "state", doLong, &cycle);
+    state_print(&payload->state, "state", doLong, cycle);
 }
 
 em_msg payload_check(payload_t *pl) {

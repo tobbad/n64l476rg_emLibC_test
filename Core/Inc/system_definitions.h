@@ -33,12 +33,11 @@
 #define MAX_HUB_CNT 1
 #define MY_SLOT_CNT 8
 #define MAX_SEND_SUB_SLOT_CNT 1
-#define USE_TINY_USB
-#define TINY_USB_MSC
+//#define USE_TINY_USB
+//#define TINY_USB_MSC
 
 #define TIME_SUB_SLOT_DURATIOM_MS 2.5
 #define USE_26MHz_OSCI 1 // Osci not crystal!
-#define ACTIVE_SLOT_USAGE 0.5
 
 typedef enum {
   user_led,     // 0

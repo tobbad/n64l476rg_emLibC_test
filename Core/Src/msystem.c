@@ -12,7 +12,7 @@
 #include "stm32l4xx_it.h"
 #ifndef USE_TINY_USB
 #ifdef HAL_PCD_MODULE_ENABLED
-#include "usbd_cdc_if.h"
+
 #endif
 #else
 #ifdef USE_TINY_USB

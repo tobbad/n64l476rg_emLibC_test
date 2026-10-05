@@ -24,7 +24,7 @@ typedef struct line_s {
 } line_t;
 
 typedef struct display_s {
-    uint8_t               cycle_size;
+    uint16_t              cycle_size;
     state_t              *state;
     state_t               lstate;
     line_t                line[LINE_CNT];
@@ -96,20 +96,17 @@ void display_clear(bool header){
 }
 
 void display_update(system_state_e state, bool force) {
-    static uint8_t idx = 0;
-    if (!my_display.init)
-        return;
-    if (!display_is_dirty())
-        return;
+    static uint16_t idx = 0;
+    if (!my_display.init)  return;
     idx++;
     idx = idx%my_display.cycle_size;
     bool doShow = (idx<my_display.cycle_size)?true:false;
-    if ((idx == 0)|| force){
+    if ((idx == 1) || force){
         if ((state>=SYNCHRONIZE_READY) &&(state<SYNC_CNT)){
-            my_display.lstate = *my_display.state;
             display_states_update(doShow);
             display_lines(doShow);
             ssd1306_UpdateScreen();
+            my_display.lstate = *my_display.state;
             my_display.dirty = false;
         }
     }
@@ -157,24 +154,22 @@ bool display_is_dirty() {
 static void display_states_update(bool doShowLine) {
     for (uint8_t i = 0; i < my_display.state->cnt; i++) {
         uint8_t idx = i + my_display.state->first;
-       char* sstr = state_key_string(OFF);
-       if (my_display.state->state[idx] == OFF) {
-            memcpy(&my_display.line[STATE].line[2 * i], (uint8_t *)(sstr), strlen(sstr));
+        char* empty = state_keys_string(KEY_STATE_CNT);
+        uint8_t slen = strlen(empty);
+        if (my_display.state->state[idx] == OFF) {
+            memcpy(&my_display.line[STATE].line[slen * i], (uint8_t *)(empty), slen);
         } else if (my_display.state->state[idx] == BLINKING) {
+            char* sstr = state_keys_string(BLINKING);
             if (doShowLine) {
-                char* sstr = (uint8_t *)state_key_string(my_display.state->state[idx]);
-                memcpy(&my_display.line[STATE].line[2 * i],sstr,  strlen(sstr));
+                memcpy(&my_display.line[STATE].line[slen * i],sstr, slen);
             } else {
-                memcpy(&my_display.line[STATE].line[2 * i], sstr, strlen(sstr));
+                memcpy(&my_display.line[STATE].line[slen * i], empty, slen);
             }
         } else {
-            memcpy(&my_display.line[STATE].line[2 * i], sstr, strlen(sstr));
+            char* sstr = state_keys_string(ON);
+            memcpy(&my_display.line[STATE].line[slen * i], sstr, slen);
         }
     }
-    uint16_t crc = common_crc16((uint8_t *)&my_display.line[STATE].line, CHAR_PER_LINE - 1);
-    my_display.line[STATE].dirty = (crc != my_display.line[STATE].crc);
-    my_display.line[STATE].crc = crc;
-    my_display.dirty |= my_display.line[STATE].dirty;
 }
 
 static void display_lines(bool doShowLine) {

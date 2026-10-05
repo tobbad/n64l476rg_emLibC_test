@@ -29,8 +29,7 @@
 #include "tinyUSB.h"
 #include "tusb.h"
 #else
-#include "usb_device.h"
-#include "usbd_cdc_if.h"
+
 #endif
 #endif
 /* USER CODE END Includes */
@@ -78,8 +77,7 @@ dev_handle_t sDev;
 dev_handle_t eDev;
 static buffer_t rxb = { .size = RX_BUFFER_SIZE };
 static buffer_t txb = { .size = TX_BUFFER_SIZE };
-sio_t serial = { .uart = &huart2, .buffer = { &rxb, &txb }, .mode = RAW
-        | TIMESTAMP };
+sio_t serial = { .uart = &huart2, .buffer = { &rxb, &txb }, .mode =  RAW |USE_UART | TIMESTAMP };
 buffer_t urx_buffer = { .size = USB_TX_BUFFER_SIZE, .type = RING };
 buffer_t utx_buffer = { .size = USB_TX_BUFFER_SIZE, .type = RING };
 time_handle_t timehdl;
@@ -152,7 +150,7 @@ int main(void)
     buffer_new_buffer_t(&utx_buffer);
     rtxhdl  = time_new("rtxhdl");
     rrxhdl  = time_new("rrxhdl");
-
+    system_state_e read_state = RESET;
 
   /* USER CODE END Init */
 
@@ -177,7 +175,7 @@ int main(void)
   MX_QUADSPI_Init();
   /* USER CODE BEGIN 2 */
     msystem_init(&system_state, NULL);
-    cycle_init(&cycle, 3 , SS_SUBSLOT_PRE, SS_SUBSLOT_POST, SS_SUBSLOT_RX_DIFF, CYCLE_MASTER_KEEP_ALIVE_CYCLE_CNT, &htim1);
+    cycle_init(&cycle , SS_SUBSLOT_PRE, SS_SUBSLOT_POST, SS_SUBSLOT_RX_DIFF, CYCLE_MASTER_KEEP_ALIVE_CYCLE_CNT, &htim1);
 
     time_init(); // must be called after SystemClock_Config()
     timehdl = time_new("timehdl");
@@ -208,13 +206,7 @@ int main(void)
             line[i]='*';
         }
     }
-    for (uint8_t i=0;i<TX_BUFFER_SIZE-2;i++) {
-        if (i%10==0){
-            line[i]='0'+i/10;
-        } else {
-            line[i]='*';
-        }
-    }
+    printf("%s"NL,line);
     printf("*************" NL);
     printf("*************" NL);
     printf("Start logging" NL);
@@ -248,6 +240,8 @@ int main(void)
             printf("I2C device @ 0x%02X" NL, a); // SSD1306: erwartet 0x3C (oder 0x3D)
         }
     }
+    cycle_set_state(&cycle, SYNCHRONIZE);
+    cycle_set_slot(&cycle,1, SLAVE);
     display_init(&system_state, BLINKING_CNT, &Font_6x8);
     display_write_txt2line(HEADING, "Do start", Centered);
     display_setAttr(0, BLINKING);
@@ -256,9 +250,9 @@ int main(void)
     printf("Set Key? " NL);
     keyboard_reset(sDev);
     keyboard_reset(eDev);
-    msystem.sync_state = SYNCHRONIZE;
-    printf("Set synchronisation state to %s" NL,
-            idxa2str(&synca2str, msystem.sync_state));
+    display_write_txt2line(HEADING, "slot = 3", Centered);
+
+    printf("Set synchronisation state to %s" NL, idxa2str(&synca2str, msystem.sync_state));
     uint32_t    lTick= HAL_GetTick();
   /* USER CODE END 2 */
 
@@ -272,6 +266,12 @@ int main(void)
         tinyUSB_app_task();
         time_stop(timehdl, NULL);
 #endif
+        __disable_irq();
+        if (read_state != cycle_get_state(&cycle) ) {
+            read_state =   cycle_get_state(&cycle);
+            cycle_text_print(&cycle, idxa2str(&synca2str, cycle_get_state(&cycle)));
+        }
+        __enable_irq();
         if (keyboard_scan((eDev)) >= 0) {
             state_reset(&diff);
             keyboard_state(eDev, &estate);
@@ -303,7 +303,7 @@ int main(void)
                         // rb_system.txFrame->payload.hubCnt = 0;
                     }
                     // state_merge(&system_state, &rb_system.txFrame->payload.state);
-                    state_set_undirty(&system_state);
+
                     keyboard_set_state(eDev, &system_state);
                     if (EM_OK == msystem_action((char*) rxb.mem)) {
                         // AppliFrame_Undirty(rb_system.txFrame);
@@ -311,6 +311,10 @@ int main(void)
                     buffer_reset(&rxb);
                     keyboard_undirty(sDev);
                 }
+            }
+            if (state_get_dirty(&system_state)){
+                state_print(&system_state, "SystemState", true, &cycle);
+                state_set_undirty(&system_state);
             }
     /* USER CODE END WHILE */
 
@@ -467,7 +471,7 @@ static void MX_QUADSPI_Init(void)
   /* USER CODE END QUADSPI_Init 1 */
   /* QUADSPI parameter configuration*/
   hqspi.Instance = QUADSPI;
-  hqspi.Init.ClockPrescaler = 255;
+  hqspi.Init.ClockPrescaler = 8;
   hqspi.Init.FifoThreshold = 1;
   hqspi.Init.SampleShifting = QSPI_SAMPLE_SHIFTING_NONE;
   hqspi.Init.FlashSize = 1;
