@@ -7,3 +7,6 @@
 [submodule "lib/fatfs"]
 	path = lib/fatfs
 	url = https://github.com/tobbad/fatfs.git
+[submodule "lib/tinyUSB"]
+	path = lib/tinyUSB
+	url = https://github.com/hathach/tinyusb.git
