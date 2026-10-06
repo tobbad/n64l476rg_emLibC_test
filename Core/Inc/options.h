@@ -15,6 +15,6 @@
 #define OPTION_GUI_SUPPORT    0
 #define OPTION_DFU            0
 #define OPTION_VERBOSE        0
-#define OPTION_SHOW_TIMING    0
+#define OPTION_SHOW_TIMING    1
 
 #endif /* INC_OPTIONS_H_ */

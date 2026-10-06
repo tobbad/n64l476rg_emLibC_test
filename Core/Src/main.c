@@ -324,6 +324,7 @@ int main(void)
             if (delta_tick > BLINKING_MS) {
                 lTick = tTick;
                 GpioPinToggle(&msystem.user_pin->pin[user_led]);
+                GpioPinToggle(&msystem.user_pin->pin[radio_led]);
             }
             time_stop(timehdl, NULL);
         }
