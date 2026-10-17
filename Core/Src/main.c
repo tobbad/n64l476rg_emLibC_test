@@ -206,7 +206,7 @@ int main(void)
             line[i]='*';
         }
     }
-    printf("%s"NL,line);
+    printf("%s"NL, line);
     printf("*************" NL);
     printf("*************" NL);
     printf("Start logging" NL);
