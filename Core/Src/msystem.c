@@ -109,7 +109,8 @@ void helpAction(char *para) {
     }
 }
 
-void msystem_init(state_t *system_state, gpio_port_t *my_ledline) {
+dev_handle_t msystem_init(state_t *system_state, gpio_port_t *my_ledline) {
+    dev_handle_t shdl;
     msystem.user_pin     = &user_pin;
     msystem.system_state = system_state;
     msystem.slot         = -1;
@@ -118,8 +119,10 @@ void msystem_init(state_t *system_state, gpio_port_t *my_ledline) {
     for (uint8_t i = 0; i < cmda2action.cnt; i++) {
         cmda2action.max_len = MAX(cmda2action.max_len, strlen(actionsOnInput[i].cmd));
     }
-    msystem.hdl = stateled_init(msystem.system_state, my_ledline, BLINKING_CNT * MY_SLOT_CNT, BLINKING_IT_CNT);
+    shdl = stateled_init(msystem.system_state, my_ledline, BLINKING_CNT * MY_SLOT_CNT, BLINKING_IT_CNT);
+    stateled_set_mask(shdl, 0xF);
     printf("Maximal command length is %d" NL, cmda2action.max_len);
+    return shdl;
 }
 
 em_msg msystem_set_slot(int8_t slot, dev_role_e ss_type) {

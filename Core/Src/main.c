@@ -85,6 +85,37 @@ time_handle_t   timehdl;
 char            line[TX_BUFFER_SIZE];
 time_handle_t   rtxhdl = -1;
 time_handle_t   rrxhdl = -1;
+static gpio_port_t slave_ledline = {
+       .cnt =10,
+       .pin = {
+            { .port = GPIOC, .pin = GPIO_PIN_4,  .def= false,  .inv= false, .conf = { .Mode = GPIO_MODE_OUTPUT_PP, .Speed=GPIO_SPEED_FREQ_LOW, .Pull = GPIO_NOPULL } }, //  ddata_0,
+            { .port = GPIOB, .pin = GPIO_PIN_13, .def= false,  .inv= false, .conf = { .Mode = GPIO_MODE_OUTPUT_PP, .Speed=GPIO_SPEED_FREQ_LOW, .Pull = GPIO_NOPULL } }, //  ddata_1,
+            { .port = GPIOB, .pin = GPIO_PIN_14, .def= false,  .inv= false, .conf = { .Mode = GPIO_MODE_OUTPUT_PP, .Speed=GPIO_SPEED_FREQ_LOW, .Pull = GPIO_NOPULL } }, //  ddata_2,
+            { .port = GPIOB, .pin = GPIO_PIN_15, .def= false,  .inv= false, .conf = { .Mode = GPIO_MODE_OUTPUT_PP, .Speed=GPIO_SPEED_FREQ_LOW, .Pull = GPIO_NOPULL } }, //  ddata_3,
+            { .port = GPIOB, .pin = GPIO_PIN_1,  .def= false,  .inv= false, .conf = { .Mode = GPIO_MODE_OUTPUT_PP, .Speed=GPIO_SPEED_FREQ_LOW, .Pull = GPIO_NOPULL } }, //  ss_toggle,
+            { .port = GPIOB, .pin = GPIO_PIN_2,  .def= false,  .inv= false, .conf = { .Mode = GPIO_MODE_OUTPUT_PP, .Speed=GPIO_SPEED_FREQ_LOW, .Pull = GPIO_NOPULL } }, //  slot_toggle,
+            { .port = GPIOB, .pin = GPIO_PIN_11, .def= false,  .inv= false, .conf = { .Mode = GPIO_MODE_OUTPUT_PP, .Speed=GPIO_SPEED_FREQ_LOW, .Pull = GPIO_NOPULL } }, //  cycle_toggle,
+            { .port = GPIOB, .pin = GPIO_PIN_12, .def= false,  .inv= false, .conf = { .Mode = GPIO_MODE_OUTPUT_PP, .Speed=GPIO_SPEED_FREQ_LOW, .Pull = GPIO_NOPULL } }, //  tx_toggle,
+            { .port = GPIOB, .pin = GPIO_PIN_5,  .def= false,  .inv= false, .conf = { .Mode = GPIO_MODE_OUTPUT_PP, .Speed=GPIO_SPEED_FREQ_LOW, .Pull = GPIO_NOPULL } }, //  cycle_update,
+            { .port = GPIOB, .pin = GPIO_PIN_6,  .def= false,  .inv= false, .conf = { .Mode = GPIO_MODE_OUTPUT_PP, .Speed=GPIO_SPEED_FREQ_LOW, .Pull = GPIO_NOPULL } }, //  rx_toggle,
+       },
+};
+static gpio_port_t master_ledline = {
+       .cnt =10,
+       .pin = {
+            { .port = GPIOC, .pin = GPIO_PIN_0,  .def= false,  .inv= false, .conf = { .Mode = GPIO_MODE_OUTPUT_PP, .Speed=GPIO_SPEED_FREQ_LOW, .Pull = GPIO_NOPULL } }, //  ddata_0,
+            { .port = GPIOC, .pin = GPIO_PIN_1,  .def= false,  .inv= false, .conf = { .Mode = GPIO_MODE_OUTPUT_PP, .Speed=GPIO_SPEED_FREQ_LOW, .Pull = GPIO_NOPULL } }, //  ddata_1,
+            { .port = GPIOC, .pin = GPIO_PIN_2,  .def= false,  .inv= false, .conf = { .Mode = GPIO_MODE_OUTPUT_PP, .Speed=GPIO_SPEED_FREQ_LOW, .Pull = GPIO_NOPULL } }, //  ddata_2,
+            { .port = GPIOC, .pin = GPIO_PIN_3,  .def= false,  .inv= false, .conf = { .Mode = GPIO_MODE_OUTPUT_PP, .Speed=GPIO_SPEED_FREQ_LOW, .Pull = GPIO_NOPULL } }, //  ddata_3,
+            { .port = GPIOA, .pin = GPIO_PIN_4,  .def= false,  .inv= false, .conf = { .Mode = GPIO_MODE_OUTPUT_PP, .Speed=GPIO_SPEED_FREQ_LOW, .Pull = GPIO_NOPULL } }, //  ss_toggle,
+            { .port = GPIOH, .pin = GPIO_PIN_1,  .def= false,  .inv= false, .conf = { .Mode = GPIO_MODE_OUTPUT_PP, .Speed=GPIO_SPEED_FREQ_LOW, .Pull = GPIO_NOPULL } }, //  slot_toggle,
+            { .port = GPIOB, .pin = GPIO_PIN_7,  .def= false,  .inv= false, .conf = { .Mode = GPIO_MODE_OUTPUT_PP, .Speed=GPIO_SPEED_FREQ_LOW, .Pull = GPIO_NOPULL } }, //  cycle_toggle,
+            { .port = GPIOA, .pin = GPIO_PIN_15, .def= false,  .inv= false, .conf = { .Mode = GPIO_MODE_OUTPUT_PP, .Speed=GPIO_SPEED_FREQ_LOW, .Pull = GPIO_NOPULL } }, //  tx_toggle,
+            { .port = GPIOA, .pin = GPIO_PIN_14, .def= false,  .inv= false, .conf = { .Mode = GPIO_MODE_OUTPUT_PP, .Speed=GPIO_SPEED_FREQ_LOW, .Pull = GPIO_NOPULL } }, //  cycle_update,
+            { .port = GPIOA, .pin = GPIO_PIN_13, .def= false,  .inv= false, .conf = { .Mode = GPIO_MODE_OUTPUT_PP, .Speed=GPIO_SPEED_FREQ_LOW, .Pull = GPIO_NOPULL } }, //  rx_toggle,
+       },
+};
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -149,8 +180,9 @@ int main(void) {
     estate = system_state;
     buffer_new_buffer_t(&urx_buffer);
     buffer_new_buffer_t(&utx_buffer);
-    rtxhdl                    = time_new("rtxhdl");
-    rrxhdl                    = time_new("rrxhdl");
+    rtxhdl  = time_new("rtxhdl");
+    rrxhdl  = time_new("rrxhdl");
+
     system_state_e read_state = RESET;
     AppliFrame_t   frame;
     radio_stat_init(&rstat);
@@ -178,10 +210,12 @@ int main(void) {
     MX_QUADSPI_Init();
     MX_TIM2_Init();
     /* USER CODE BEGIN 2 */
-    msystem_init(&system_state, NULL);
+    dev_handle_t shdl = msystem_init(&system_state, &slave_ledline);
+    cycle_init(&cycle, shdl, SS_SUBSLOT_PRE, SS_SUBSLOT_POST, SS_SUBSLOT_RX_DIFF, CYCLE_MASTER_KEEP_ALIVE_CYCLE_CNT, &htim1);
 
-    cycle_init(&cycle, STATELED_INBUILD, SS_SUBSLOT_PRE, SS_SUBSLOT_POST, SS_SUBSLOT_RX_DIFF, CYCLE_MASTER_KEEP_ALIVE_CYCLE_CNT, &htim1);
-    cycle_init(&mcycle, STATELED_INBUILD, SS_SUBSLOT_PRE, SS_SUBSLOT_POST, SS_SUBSLOT_RX_DIFF, CYCLE_MASTER_KEEP_ALIVE_CYCLE_CNT, &htim1);
+    dev_handle_t mhdl = stateled_init(&system_state, &master_ledline, BLINKING_CNT * MY_SLOT_CNT, BLINKING_IT_CNT);
+    cycle_init(&mcycle, mhdl, SS_SUBSLOT_PRE, SS_SUBSLOT_POST, SS_SUBSLOT_RX_DIFF, CYCLE_MASTER_KEEP_ALIVE_CYCLE_CNT, &htim1);
+
     AppliFrame_Init(&frame, MASTER_SLOT);
     time_init(); // must be called after SystemClock_Config()
     timehdl = time_new("timehdl");

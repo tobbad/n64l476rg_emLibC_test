@@ -50,6 +50,8 @@ extern "C" {
 #include "githash.h"
 #include "display.h"
 #include "tusb.h"
+#include "system_definitions.h"
+
 
 
 /* USER CODE END Includes */

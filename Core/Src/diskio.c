@@ -13,8 +13,12 @@
  * Bewusst die synchronen qspi_read()/qspi_write(): FatFs wird nur beim Start
  * benutzt, vor tusb_init(), wenn noch kein asynchroner Transfer laufen kann.
  */
-#include "diskio.h"
+// ff.h muss vor diskio.h stehen: diskio.h braucht BYTE/LBA_t/UINT, bindet
+// ff.h seit FatFs R0.15 aber nicht mehr selbst ein. Leerzeile verhindert,
+// dass clang-format (SortIncludes) die Reihenfolge umdreht.
 #include "ff.h"
+
+#include "diskio.h"
 #include "main.h"
 #include "msc_disc.h"
 #include "qspi.h"
