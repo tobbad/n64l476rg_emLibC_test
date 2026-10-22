@@ -21,7 +21,7 @@ typedef struct msystem_s{
     uint8_t      slot;
     int8_t       press;
     gpio_port_t  *user_pin;
-    system_state_e sync_state;
+    dev_handle_t hdl;
     state_t *    system_state;
     char         usbSerial[2*UNIQ_ID_LEN+1];
     bool         usb_active;

@@ -1,63 +1,60 @@
 /* USER CODE BEGIN Header */
 /**
-  ******************************************************************************
-  * @file    quadspi.c
-  * @brief   This file provides code for the configuration
-  *          of the QUADSPI instances.
-  ******************************************************************************
-  * @attention
-  *
-  * Copyright (c) 2025 STMicroelectronics.
-  * All rights reserved.
-  *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
-  *
-  ******************************************************************************
-  */
+ ******************************************************************************
+ * @file    quadspi.c
+ * @brief   This file provides code for the configuration
+ *          of the QUADSPI instances.
+ ******************************************************************************
+ * @attention
+ *
+ * Copyright (c) 2025 STMicroelectronics.
+ * All rights reserved.
+ *
+ * This software is licensed under terms that can be found in the LICENSE file
+ * in the root directory of this software component.
+ * If no LICENSE file comes with this software, it is provided AS-IS.
+ *
+ ******************************************************************************
+ */
 /* Includes ------------------------------------------------------------------*/
 #include "qspi.h"
 #include "m95p16.h"
 
-HAL_StatusTypeDef qspi_read(uint8_t *pData, uint32_t ReadAddr, uint32_t Size){
+HAL_StatusTypeDef qspi_read(uint8_t *pData, uint32_t ReadAddr, uint32_t Size) {
     HAL_StatusTypeDef status = QSPI_Read(&hqspi, pData, ReadAddr, Size);
-    if (status!=HAL_OK) {
-    	printf("Got error %02x reading qspi"NL, status);
+    if (status != HAL_OK) {
+        printf("Got error %02x reading qspi" NL, status);
     }
     return status;
 }
 
-HAL_StatusTypeDef qspi_write(uint8_t *pData, uint32_t WriteAddr, uint32_t Size){
+HAL_StatusTypeDef qspi_write(uint8_t *pData, uint32_t WriteAddr, uint32_t Size) {
     QSPI_WriteEnable(&hqspi);
     HAL_StatusTypeDef status = QSPI_Write(&hqspi, pData, WriteAddr, Size);
     return status;
-
 }
-HAL_StatusTypeDef qspi_erase_page(uint32_t page_nr){
+HAL_StatusTypeDef qspi_erase_page(uint32_t page_nr) {
     HAL_StatusTypeDef status = QSPI_PageErase(&hqspi, page_nr);
     return status;
 }
-HAL_StatusTypeDef qspi_erase_sector(uint32_t Sector){
+HAL_StatusTypeDef qspi_erase_sector(uint32_t Sector) {
     HAL_StatusTypeDef status = QSPI_SectorErase(&hqspi, Sector);
     return status;
 }
-HAL_StatusTypeDef qspi_erase_chip(void){
+HAL_StatusTypeDef qspi_erase_chip(void) {
     HAL_StatusTypeDef status = QSPI_ChipErase(&hqspi);
     return status;
-
 }
-uint8_t qspi_get_status(void){
+uint8_t qspi_get_status(void) {
     uint8_t status;
     QSPI_ReadSatusReg(&hqspi, &status);
     return status;
-
 }
-uint8_t qspi_get_info(QSPI_Info *pInfo){
+uint8_t qspi_get_info(QSPI_Info *pInfo) {
     /* Configure the structure with the memory configuration */
     pInfo->FlashSize          = M95P16_FLASH_SIZE;
     pInfo->EraseSectorSize    = M95P16_FLASH_SECTOR_SIZE;
-    pInfo->EraseSectorsNumber = (pInfo->FlashSize / pInfo->EraseSectorSize );
+    pInfo->EraseSectorsNumber = (pInfo->FlashSize / pInfo->EraseSectorSize);
     pInfo->ProgPageSize       = M95P16_FLASH_PAGE_SIZE;
     pInfo->ProgPagesNumber    = (pInfo->FlashSize / pInfo->ProgPageSize);
     return QSPI_OK;
@@ -91,8 +88,8 @@ bool qspi_is_busy(void) {
 // naechsten Transfer starten.
 static void qspi_finish(bool ok) {
     qspi_done_cb_t cb = qspi_done;
-    qspi_done  = NULL;
-    qspi_phase = QSPI_PHASE_IDLE;
+    qspi_done         = NULL;
+    qspi_phase        = QSPI_PHASE_IDLE;
     if (cb != NULL) {
         cb(ok);
     }

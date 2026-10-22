@@ -41,7 +41,9 @@ extern "C" {
 #include "serial.h"
 #include "_time.h"
 #include "xpad.h"
+#include "radio_stat.h"
 #include "display.h"
+#include "stateled.h"
 #include "ssd1306.h"
 #include "ssd1306_fonts.h"
 #include "ssd1306_tests.h"
@@ -64,6 +66,11 @@ extern buffer_t urx_buffer;
 extern buffer_t utx_buffer;
 extern time_handle_t   timehdl;
 #define USB_TX_BUFFER_SIZE 1024
+extern cycle_t cycle;
+extern cycle_t mcycle;
+
+#define MASTER_SLOT  1
+#define SLAVE_SLOT   3
 #ifndef TX_BUFFER_SIZE
 #define TX_BUFFER_SIZE 96
 #endif

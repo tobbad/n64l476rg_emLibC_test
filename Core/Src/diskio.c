@@ -13,11 +13,11 @@
  * Bewusst die synchronen qspi_read()/qspi_write(): FatFs wird nur beim Start
  * benutzt, vor tusb_init(), wenn noch kein asynchroner Transfer laufen kann.
  */
-#include "main.h"
-#include "ff.h"
 #include "diskio.h"
-#include "qspi.h"
+#include "ff.h"
+#include "main.h"
 #include "msc_disc.h"
+#include "qspi.h"
 
 DSTATUS disk_status(BYTE pdrv) {
     return (pdrv == 0) ? 0 : STA_NOINIT;
@@ -59,25 +59,25 @@ DRESULT disk_ioctl(BYTE pdrv, BYTE cmd, void *buff) {
     if (pdrv != 0) return RES_PARERR;
 
     switch (cmd) {
-    case CTRL_SYNC:
-        // qspi_write() pollt bis WIP geloescht ist, es steht nichts aus.
-        return RES_OK;
+        case CTRL_SYNC:
+            // qspi_write() pollt bis WIP geloescht ist, es steht nichts aus.
+            return RES_OK;
 
-    case GET_SECTOR_COUNT:
-        *(LBA_t *)buff = MSC_BLOCK_COUNT;
-        return RES_OK;
+        case GET_SECTOR_COUNT:
+            *(LBA_t *)buff = MSC_BLOCK_COUNT;
+            return RES_OK;
 
-    case GET_SECTOR_SIZE:
-        *(WORD *)buff = MSC_BLOCK_SIZE;
-        return RES_OK;
+        case GET_SECTOR_SIZE:
+            *(WORD *)buff = MSC_BLOCK_SIZE;
+            return RES_OK;
 
-    case GET_BLOCK_SIZE:
-        // In Sektoren, nicht in Bytes: die Erase Sektorgroesse des M95P16.
-        *(DWORD *)buff = M95P16_FLASH_SECTOR_SIZE / MSC_BLOCK_SIZE;
-        return RES_OK;
+        case GET_BLOCK_SIZE:
+            // In Sektoren, nicht in Bytes: die Erase Sektorgroesse des M95P16.
+            *(DWORD *)buff = M95P16_FLASH_SECTOR_SIZE / MSC_BLOCK_SIZE;
+            return RES_OK;
 
-    default:
-        return RES_PARERR;
+        default:
+            return RES_PARERR;
     }
 }
 

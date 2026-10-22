@@ -22,11 +22,11 @@
  * THE SOFTWARE.
  *
  */
-#include "main.h"
-#include "tusb.h"
 #include "msc_disc.h"
-#include "qspi.h"
 #include "ff.h"
+#include "main.h"
+#include "qspi.h"
+#include "tusb.h"
 
 #if CFG_TUD_MSC
 
@@ -114,7 +114,8 @@ void msc_print_info(void) {
     };
     printf("MSC state            = %s" NL, state_str[disk_state]);
     printf("MSC blocks           = %lu x %lu B" NL,
-           (unsigned long)MSC_BLOCK_COUNT, (unsigned long)MSC_BLOCK_SIZE);
+           (unsigned long)MSC_BLOCK_COUNT,
+           (unsigned long)MSC_BLOCK_SIZE);
     printf("MSC flash offset     = 0x%06lx" NL, (unsigned long)MSC_RESERVED);
 }
 
@@ -122,129 +123,129 @@ void msc_print_info(void) {
 // Some inquiry_resp's fields are already filled with default values, application can update them
 // Return length of inquiry response, typically sizeof(scsi_inquiry_resp_t) (36 bytes), can be longer if included vendor data.
 uint32_t tud_msc_inquiry2_cb(uint8_t lun, scsi_inquiry_resp_t *inquiry_resp, uint32_t bufsize) {
-  (void) lun;
-  (void) bufsize;
-  const char vid[] = "RadioBel";
-  const char pid[] = "M95P16 Flash";
-  const char rev[] = "1.0";
+    (void)lun;
+    (void)bufsize;
+    const char vid[] = "RadioBel";
+    const char pid[] = "M95P16 Flash";
+    const char rev[] = "1.0";
 
-  (void) strncpy((char*) inquiry_resp->vendor_id, vid, 8);
-  (void) strncpy((char*) inquiry_resp->product_id, pid, 16);
-  (void) strncpy((char*) inquiry_resp->product_rev, rev, 4);
+    (void)strncpy((char *)inquiry_resp->vendor_id, vid, 8);
+    (void)strncpy((char *)inquiry_resp->product_id, pid, 16);
+    (void)strncpy((char *)inquiry_resp->product_rev, rev, 4);
 
-  return sizeof(scsi_inquiry_resp_t); // 36 bytes
+    return sizeof(scsi_inquiry_resp_t); // 36 bytes
 }
 
 // Invoked when received Test Unit Ready command.
 // return true allowing host to read/write this LUN e.g SD card inserted
 bool tud_msc_test_unit_ready_cb(uint8_t lun) {
-  (void) lun;
-  if (!msystem.usb_active){
-      return false;
-  }
-  // RAM disk is ready until ejected
-  if (ejected) {
-    // Additional Sense 3A-00 is NOT_FOUND
-    return tud_msc_set_sense(lun, SCSI_SENSE_NOT_READY, 0x3a, 0x00);
-  }
+    (void)lun;
+    if (!msystem.usb_active) {
+        return false;
+    }
+    // RAM disk is ready until ejected
+    if (ejected) {
+        // Additional Sense 3A-00 is NOT_FOUND
+        return tud_msc_set_sense(lun, SCSI_SENSE_NOT_READY, 0x3a, 0x00);
+    }
 
-  return true;
+    return true;
 }
 
 // Invoked when received SCSI_CMD_READ_CAPACITY_10 and SCSI_CMD_READ_FORMAT_CAPACITY to determine the disk size
 // Application update block count and block size
 void tud_msc_capacity_cb(uint8_t lun, uint32_t *block_count, uint16_t *block_size) {
-  (void) lun;
-  *block_count = MSC_BLOCK_COUNT;
-  *block_size = MSC_BLOCK_SIZE;
+    (void)lun;
+    *block_count = MSC_BLOCK_COUNT;
+    *block_size  = MSC_BLOCK_SIZE;
 }
 
 // Invoked when received Start Stop Unit command
 // - Start = 0 : stopped power mode, if load_eject = 1 : unload disk storage
 // - Start = 1 : active mode, if load_eject = 1 : load disk storage
 bool tud_msc_start_stop_cb(uint8_t lun, uint8_t power_condition, bool start, bool load_eject) {
-  (void) lun;
-  (void) power_condition;
+    (void)lun;
+    (void)power_condition;
 
-  if (load_eject) {
-    if (start) {
-      // load disk storage
-    } else {
-      // unload disk storage
-      ejected = true;
+    if (load_eject) {
+        if (start) {
+            // load disk storage
+        } else {
+            // unload disk storage
+            ejected = true;
+        }
     }
-  }
 
-  return true;
+    return true;
 }
 
 // Callback invoked when received READ10 command.
 // Copy disk's data to buffer (up to bufsize) and return number of copied bytes.
 int32_t tud_msc_read10_cb(uint8_t lun, uint32_t lba, uint32_t offset, void *buffer, uint32_t bufsize) {
-  (void) lun;
+    (void)lun;
 
-  uint32_t addr = msc_addr(lba, offset, bufsize);
-  if (addr == UINT32_MAX) {
-    return TUD_MSC_RET_ERROR;
-  }
-  if (qspi_is_busy()) {
-    return TUD_MSC_RET_BUSY; // tinyUSB fragt spaeter mit denselben Parametern nochmal
-  }
-  pending_bytes = bufsize;
-  if (qspi_read_async((uint8_t *) buffer, addr, bufsize, msc_io_done) != HAL_OK) {
-    return TUD_MSC_RET_ERROR;
-  }
+    uint32_t addr = msc_addr(lba, offset, bufsize);
+    if (addr == UINT32_MAX) {
+        return TUD_MSC_RET_ERROR;
+    }
+    if (qspi_is_busy()) {
+        return TUD_MSC_RET_BUSY; // tinyUSB fragt spaeter mit denselben Parametern nochmal
+    }
+    pending_bytes = bufsize;
+    if (qspi_read_async((uint8_t *)buffer, addr, bufsize, msc_io_done) != HAL_OK) {
+        return TUD_MSC_RET_ERROR;
+    }
 
-  return TUD_MSC_RET_ASYNC;
+    return TUD_MSC_RET_ASYNC;
 }
 
 bool tud_msc_is_writable_cb(uint8_t lun) {
-  (void) lun;
+    (void)lun;
 
-  #ifdef CFG_EXAMPLE_MSC_READONLY
-  return false;
-  #else
-  return true;
-  #endif
+#ifdef CFG_EXAMPLE_MSC_READONLY
+    return false;
+#else
+    return true;
+#endif
 }
 
 // Callback invoked when received WRITE10 command.
 // Process data in buffer to disk's storage and return number of written bytes
 int32_t tud_msc_write10_cb(uint8_t lun, uint32_t lba, uint32_t offset, uint8_t *buffer, uint32_t bufsize) {
-  (void) lun;
+    (void)lun;
 
-  uint32_t addr = msc_addr(lba, offset, bufsize);
-  if (addr == UINT32_MAX) {
-    return TUD_MSC_RET_ERROR;
-  }
-  if (qspi_is_busy()) {
-    return TUD_MSC_RET_BUSY;
-  }
-  // CMD_WRITE_PAGE (0x02) loescht die Page intern, ein separates Erase
-  // entfaellt. Der Abschluss kommt per Callback, siehe msc_io_done().
-  pending_bytes = bufsize;
-  if (qspi_write_async(buffer, addr, bufsize, msc_io_done) != HAL_OK) {
-    return TUD_MSC_RET_ERROR;
-  }
+    uint32_t addr = msc_addr(lba, offset, bufsize);
+    if (addr == UINT32_MAX) {
+        return TUD_MSC_RET_ERROR;
+    }
+    if (qspi_is_busy()) {
+        return TUD_MSC_RET_BUSY;
+    }
+    // CMD_WRITE_PAGE (0x02) loescht die Page intern, ein separates Erase
+    // entfaellt. Der Abschluss kommt per Callback, siehe msc_io_done().
+    pending_bytes = bufsize;
+    if (qspi_write_async(buffer, addr, bufsize, msc_io_done) != HAL_OK) {
+        return TUD_MSC_RET_ERROR;
+    }
 
-  return TUD_MSC_RET_ASYNC;
+    return TUD_MSC_RET_ASYNC;
 }
 
 // Callback invoked when received an SCSI command not in built-in list below
 // - READ_CAPACITY10, READ_FORMAT_CAPACITY, INQUIRY, MODE_SENSE6, REQUEST_SENSE
 // - READ10 and WRITE10 has their own callbacks
 int32_t tud_msc_scsi_cb(uint8_t lun, uint8_t const scsi_cmd[16], void *buffer, uint16_t bufsize) {
-  (void) lun;
-  (void) scsi_cmd;
-  (void) buffer;
-  (void) bufsize;
+    (void)lun;
+    (void)scsi_cmd;
+    (void)buffer;
+    (void)bufsize;
 
-  // currently no other commands are supported
+    // currently no other commands are supported
 
-  // Set Sense = Invalid Command Operation
-  (void) tud_msc_set_sense(lun, SCSI_SENSE_ILLEGAL_REQUEST, 0x20, 0x00);
+    // Set Sense = Invalid Command Operation
+    (void)tud_msc_set_sense(lun, SCSI_SENSE_ILLEGAL_REQUEST, 0x20, 0x00);
 
-  return -1; // stall/failed command request;
+    return -1; // stall/failed command request;
 }
 
 #endif

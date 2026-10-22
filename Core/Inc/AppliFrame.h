@@ -13,12 +13,32 @@
 #include <assert.h>
 #include "cycle.h"
 
+typedef enum {
+    appliframe_slow = 1, // Higher slot time for data xchange
+    appliframe_sync = 2, // Setze System in Synchronisation state
+} conf_e;
+
+typedef enum __attribute__((packed)) {
+    CMDT_RESET      = 0x0,
+    CMDT_APPLI_CMD  = 0x11,
+} cmd_type_e;
+
+typedef enum __attribute__((packed)) {
+    CMD_RESET      = 0x0,
+    CMD_KEEP_ALIVE = 0x33,
+    CMD_LED_TOGGLE = 0xff,
+    CMD_ACK_OK     = 0x01,
+    CMD_NWK_CMD    = 0x22,
+} cmd_e;
+
 typedef struct AppliFrame_s {
     uint8_t    Cmdtag;
+    cmd_type_e CmdType;
     uint8_t    CmdLen;
-    uint8_t    DataLen; // 5 Bytes
-    uint8_t    slot; // 6,
-    uint8_t    conf[2]; // 7, 8
+    cmd_e      Cmd;
+    uint8_t    DataLen;  // 5 Bytes
+    uint8_t    slot;     // 6,
+    uint16_t   conf;     // 7, 8
     payload_t  payload; // 44 Byte
 } AppliFrame_t; // header size is payload (44 Byte) + 8 = 52 Byte
 
@@ -35,6 +55,8 @@ extern AppliFrame_t keepAlivePackage;
 void   AppliFrame_Init(AppliFrame_t *frame, int8_t slot);
 void   AppliFrame_Reset(AppliFrame_t *frame);
 bool   AppliFrame_IsDirty(AppliFrame_t *frame);
+bool   AppliFrame_IsAck(AppliFrame_t *frame);
+int8_t AppliFrame_HandleRx(cycle_t *cycle, AppliFrame_t *rxFrame);
 void   AppliFrame_SetDirty(AppliFrame_t *frame);
 int8_t AppliFrame_GetSlot(AppliFrame_t *frame);
 void   AppliFrame_SetSlot(AppliFrame_t *frame, int8_t slot);
